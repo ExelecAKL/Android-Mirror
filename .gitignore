@@ -1,0 +1,13 @@
+/build/
+/installer/
+/releases/
+/archive/
+/Android Mirror.exe
+/scrcpy.exe
+/scrcpy-connect.exe
+/.scrcpy-connect/
+/settings.xml
+*.user
+*.suo
+Thumbs.db
+Desktop.ini

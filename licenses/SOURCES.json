@@ -1,0 +1,32 @@
+[
+  {
+    "name": "ffmpeg",
+    "version": "9.0.2",
+    "url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+    "sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e"
+  },
+  {
+    "name": "libusb",
+    "version": "1.0.30",
+    "url": "https://github.com/libusb/libusb/archive/refs/tags/v1.0.30.tar.gz",
+    "sha256": "2ae28adb0bb9558c86135c4e1c11b320b0805461e207a64a6e520a114094bf07"
+  },
+  {
+    "name": "SDL",
+    "version": "3.4.18",
+    "url": "https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.4.18.tar.gz",
+    "sha256": "c4b08b950bd29d83caae0ab8d884298d27046a9d30700fb42841c50992665c90"
+  },
+  {
+    "name": "dav1d",
+    "version": "1.5.4",
+    "url": "https://downloads.videolan.org/pub/videolan/dav1d/1.5.4/dav1d-1.5.4.tar.xz",
+    "sha256": "686616b7c69eb88d44459391ab25cac13b6647a3b288835c5784e71c1514a5c5"
+  },
+  {
+    "name": "platform-tools",
+    "version": "37.0.1",
+    "url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip",
+    "sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99"
+  }
+]

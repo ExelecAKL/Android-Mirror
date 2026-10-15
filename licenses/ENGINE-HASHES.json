@@ -1,0 +1,58 @@
+[
+  {
+    "Name": "adb.exe",
+    "SHA256": "b4a6b455702684652cccf7b46258b29e653538904359a58fd4931cf3ef286b3f"
+  },
+  {
+    "Name": "AdbWinApi.dll",
+    "SHA256": "c1d653030b4bde65d3e07e4d0b0979e17be56df1436cdd15528630f27808050d"
+  },
+  {
+    "Name": "AdbWinUsbApi.dll",
+    "SHA256": "0710e894d9b40f71a670c13c694079d564c92c1279da382cfe4850983aaebe1b"
+  },
+  {
+    "Name": "avcodec-63.dll",
+    "SHA256": "159928e3bbe7beaca046ccf831fdf44f1e5559c0e63417f007889a6bb2c5de88"
+  },
+  {
+    "Name": "avformat-63.dll",
+    "SHA256": "4dbb0c1c8262f7ae45e7edc4866e26f53b358bf4fc7a0b971f15d1f2d7baf22f"
+  },
+  {
+    "Name": "avutil-61.dll",
+    "SHA256": "52eb504ced0ea6d9e936d348df51c8aaeec1cae8fa4a7dba339fea87d7cce725"
+  },
+  {
+    "Name": "disconnected.png",
+    "SHA256": "e394873cd3e2cc3ab0cca6212b10ed2a8a0fad11a05675c8a9fa6f26f3ae12c0"
+  },
+  {
+    "Name": "libusb-1.0.dll",
+    "SHA256": "0c82e969c046d816507a2fe1e57253a334cb203bd6ea223194ad17c007154f32"
+  },
+  {
+    "Name": "LICENSE.txt",
+    "SHA256": "01c12035bf35af37241298dc7ad538eb2a07e5c940437bc6876feeaa9d1951d0"
+  },
+  {
+    "Name": "scrcpy-server",
+    "SHA256": "764eb6f79811d5211fe9df341120882ba9994c7a61b897d7bf3fb662e53bc536"
+  },
+  {
+    "Name": "scrcpy.exe",
+    "SHA256": "64bcee493d9243dab1e84093928014348738e31f3225e67558210e6b6cfb9cd6"
+  },
+  {
+    "Name": "scrcpy.png",
+    "SHA256": "8e8ca237898faa16014cdd118396af53405b423f3db0508c50cc3edce08eb313"
+  },
+  {
+    "Name": "SDL3.dll",
+    "SHA256": "288aaf5b4f246bd84c276351867e3132cfcd9b0a9d25fb679c8d94b30cdf333e"
+  },
+  {
+    "Name": "swresample-7.dll",
+    "SHA256": "7b57e891bf09c43422d79f98cf9d1830c4b1d48a251423ce5fb8c2048eb8fc1e"
+  }
+]

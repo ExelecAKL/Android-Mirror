@@ -1,0 +1,12 @@
+* text=auto
+*.cs text eol=crlf
+*.ps1 text eol=crlf
+*.md text eol=lf
+*.svg text eol=lf
+*.sh text eol=lf
+engine/LICENSE.txt -text
+licenses/scrcpy-LICENSE.txt -text
+*.exe binary
+*.dll binary
+*.png binary
+/engine/scrcpy-server binary
