@@ -12,7 +12,8 @@ $references = @('/reference:System.Core.dll','/reference:System.Drawing.dll','/r
 $wpfDirectory = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\WPF'
 $uiReferences = @('/reference:System.Xaml.dll','/reference:System.Xml.Linq.dll',('/reference:' + (Join-Path $wpfDirectory 'PresentationFramework.dll')),('/reference:' + (Join-Path $wpfDirectory 'PresentationCore.dll')),('/reference:' + (Join-Path $wpfDirectory 'WindowsBase.dll')))
 $uiResources = @(('/resource:' + (Join-Path $sourceDirectory 'MainWindow.xaml') + ',MainWindow.xaml'),('/resource:' + (Join-Path $sourceDirectory 'SetupWindow.xaml') + ',SetupWindow.xaml'),('/resource:' + (Join-Path $packageDirectory 'assets\Android Mirror logo.svg') + ',brand.svg'),('/resource:' + (Join-Path $packageDirectory 'build\assets\brand.png') + ',app-artwork.png'))
-$uiSources = @($setupSource,(Join-Path $sourceDirectory 'SetupUi.cs'),(Join-Path $sourceDirectory 'SvgLogo.cs'),(Join-Path $sourceDirectory 'AssemblyInfo.cs'))
+$identitySource = Join-Path $sourceDirectory 'WindowsAppIdentity.cs'
+$uiSources = @($setupSource,$identitySource,(Join-Path $sourceDirectory 'SetupUi.cs'),(Join-Path $sourceDirectory 'SvgLogo.cs'),(Join-Path $sourceDirectory 'AssemblyInfo.cs'))
 $shared = @('/nologo','/optimize+',('/win32icon:' + $iconPath),('/win32manifest:' + (Join-Path $sourceDirectory 'setup.manifest'))) + $references + $uiReferences + $uiResources
 $uninstaller = Join-Path $setupDirectory 'Uninstall Android Mirror.exe'
 & $compiler @shared /target:winexe /define:UNINSTALLER ('/out:' + $uninstaller) @uiSources
@@ -50,7 +51,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Setup build failed.' }
 
 # Same installer code and payload, tested as the current user in a workspace fixture.
 $testPath = Join-Path $testDirectory 'setup-tests.exe'
-& $compiler /nologo /target:exe /main:SetupTests ('/out:' + $testPath) @references ('/resource:' + $payloadPath + ',payload.zip') $setupSource (Join-Path $sourceDirectory 'SetupTests.cs')
+& $compiler /nologo /target:exe /main:SetupTests ('/out:' + $testPath) @references ('/resource:' + $payloadPath + ',payload.zip') $setupSource $identitySource (Join-Path $sourceDirectory 'SetupTests.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Installer test build failed.' }
 & $testPath
 if ($LASTEXITCODE -ne 0) { throw 'Installer checks failed.' }

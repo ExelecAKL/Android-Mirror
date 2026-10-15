@@ -39,8 +39,20 @@ static class SetupTests
             Console.WriteLine("PASS full install preserves the branded engine and provides one app launcher");
             string shortcut = Path.Combine(target, "Android Mirror.lnk");
             Package.Shortcut(shortcut, Path.Combine(target, "Android Mirror.exe"), target);
-            Assert(File.Exists(shortcut), "Windows shortcut missing."); File.Delete(shortcut);
-            Console.WriteLine("PASS native Windows shortcut creation");
+            Assert(AndroidMirror.WindowsAppIdentity.MatchesShortcut(shortcut, Path.Combine(target, "Android Mirror.exe")), "Shortcut target, app identity, or branded icon is missing.");
+            var link = AndroidMirror.WindowsAppIdentity.ReadShortcut(shortcut);
+            Assert(link.AppId == "Exelec.AndroidMirror.Desktop" && link.IconIndex == 0, "Windows cannot resolve this shortcut's notification identity.");
+            Console.WriteLine("PASS native Windows shortcut contains the app identity and branded icon");
+            string otherApp = Path.Combine(target, "Other app.exe");
+            File.Copy(Path.Combine(target, "Android Mirror.exe"), otherApp);
+            Package.Shortcut(shortcut, otherApp, target);
+            AndroidMirror.WindowsAppIdentity.RemoveShortcutIfOwned(shortcut, Path.Combine(target, "Android Mirror.exe"));
+            Assert(File.Exists(shortcut) && !AndroidMirror.WindowsAppIdentity.MatchesShortcut(shortcut, Path.Combine(target, "Android Mirror.exe")), "Another installation's shortcut was removed or accepted.");
+            Package.Shortcut(shortcut, Path.Combine(target, "Android Mirror.exe"), target);
+            Assert(AndroidMirror.WindowsAppIdentity.MatchesShortcut(shortcut, Path.Combine(target, "Android Mirror.exe")), "An older shortcut was not repaired.");
+            AndroidMirror.WindowsAppIdentity.RemoveShortcutIfOwned(shortcut, Path.Combine(target, "Android Mirror.exe"));
+            Assert(!File.Exists(shortcut), "Owned shortcut was not removed."); File.Delete(otherApp);
+            Console.WriteLine("PASS shortcut repair and cleanup preserve links belonging to other installations");
             string userFile = Path.Combine(target, "keep-user-file.txt"); File.WriteAllText(userFile, "keep");
             foreach (string name in new[] { "scrcpy.exe", "scrcpy-connect.exe", "engine/scrcpy.exe" }) File.WriteAllText(Package.SafePath(target, name), "retired launcher");
             File.AppendAllLines(Path.Combine(target, "install-manifest.txt"), new[] { "scrcpy.exe", "scrcpy-connect.exe", "engine/scrcpy.exe" });
@@ -66,7 +78,7 @@ static class SetupTests
             Assert(!File.Exists(Path.Combine(target, "Android Mirror.exe")) && !Directory.Exists(Path.Combine(target, "engine")) && !Directory.Exists(Path.Combine(target, "assets")) && !Directory.Exists(Path.Combine(target, "licenses")) && !Directory.Exists(Path.Combine(target, "docs")) && !Directory.Exists(Path.Combine(target, "tools")), "Owned installation files remain.");
             File.Delete(userFile); Directory.Delete(target);
             Console.WriteLine("PASS uninstall removes owned files and keeps user files");
-            Console.WriteLine("7 installer checks passed. Windows installation settings were not changed."); return 0;
+            Console.WriteLine("8 installer checks passed. Windows installation settings were not changed."); return 0;
         }
         catch (Exception error) { Console.Error.WriteLine(error); return 1; }
     }

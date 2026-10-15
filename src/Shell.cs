@@ -147,6 +147,7 @@ namespace AndroidMirror
                 tray.QuitRequested += () => OnUI(Quit);
                 tray.MirrorRequested += () => OnUI(() => { if (updatingEngine) return; if (controller.ActiveCount > 0 || controller.Waiting || otgSession != null) { controller.StopAll(); if (otgSession != null) otgSession.Stop(); } else controller.ConnectSelected(); });
                 tray.Error += AddLog;
+                if (!String.IsNullOrEmpty(tray.IdentityError)) AddLog(tray.IdentityError);
                 SystemEvents.UserPreferenceChanged += OnPreferenceChanged;
                 if (activation != null) activationWait = ThreadPool.RegisterWaitForSingleObject(activation, (state, timeout) => OnUI(RestoreWindow), null, Timeout.Infinite, false);
                 if (quitSignal != null) quitWait = ThreadPool.RegisterWaitForSingleObject(quitSignal, (state, timeout) => OnUI(Quit), null, Timeout.Infinite, false);
@@ -539,8 +540,30 @@ namespace AndroidMirror
                         report.Add("PASS App update / Engine based update labels, readable changes, and Install update / Remind me later actions");
                         if (!(Control<Image>("BrandIcon").Source is DrawingImage)) throw new Exception("SVG logo missing.");
                         report.Add("PASS embedded SVG app logo");
+                        using (var notifications = new TrayIntegration(Assembly.GetExecutingAssembly().Location, "Verification", false, false))
+                        {
+                            var notificationIcon = (System.Windows.Forms.NotifyIcon)typeof(TrayIntegration).GetField("icon", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(notifications);
+                            Action[] send = { notifications.NotifyBackground,
+                                () => notifications.NotifyConnected(new Device { Serial = "verification", Model = "Test_phone", State = "device" }),
+                                () => notifications.NotifyAppUpdate("9.9.9"), () => notifications.NotifyUpdate("8.8.8") };
+                            string[] titles = { "Android Mirror is running in the tray", "Test phone connected", "Android Mirror update", "Engine based update" };
+                            string[] notificationDetails = { "Device detection continues", "Android Mirror", "9.9.9", "8.8.8" };
+                            for (int n = 0; n < send.Length; n++)
+                            {
+                                send[n]();
+                                if (notificationIcon.Visible || notificationIcon.Icon == null || notificationIcon.Text != "Android Mirror" || notificationIcon.BalloonTipIcon != System.Windows.Forms.ToolTipIcon.Info || notificationIcon.BalloonTipTitle != titles[n] || !notificationIcon.BalloonTipText.Contains(notificationDetails[n])) throw new Exception("Notification branding or information icon failed: " + titles[n]);
+                            }
+                            using (var artwork = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.ico"))
+                            using (var expected = new System.Drawing.Icon(artwork))
+                            using (var first = new MemoryStream()) using (var second = new MemoryStream())
+                            {
+                                expected.Save(first); notificationIcon.Icon.Save(second);
+                                if (!first.ToArray().SequenceEqual(second.ToArray())) throw new Exception("Notification area icon does not match the app logo.");
+                            }
+                        }
+                        report.Add("PASS all four notification routes: background, device connected, app update, engine update; branded icon and native information symbol");
                         report.Add("Native material: " + Appearance.Material);
-                        report.Add("Notification delivery: Windows Shell_NotifyIcon with Android Mirror artwork (suppressed during checks)");
+                        report.Add("Notification delivery: Windows information symbol, Android Mirror shortcut identity and header logo (delivery suppressed during checks)");
                         File.WriteAllLines(output, report);
                         check.Stop(); Quit();
                     }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.2 — 2026-10-15
+
+- Repair Windows Start menu shortcut identity so notification headers resolve Android Mirror and its logo instead of the internal app ID.
+- Restore Windows' blue information symbol for background, device-connected, app-update, and engine-update notifications through their shared delivery path.
+- Repair older per-user shortcuts automatically, set matching metadata on installer shortcuts, and retain other installations' shortcuts during cleanup.
+- Add checks for all four notification routes, embedded logo bytes, native shortcut metadata, repair, and ownership-aware cleanup.
+- Publish as a newer app version so existing 1.1.1 installations can offer Install update / Remind me later on their next enabled automatic check.
+
 ## 1.1.1 — 2026-10-15
 
 - Keep sharing when minimized: preserves the same drawable mirror window outside the desktop for modern Windows window capture, with taskbar/Alt+Tab restoration and a Settings toggle enabled by default.
@@ -7,7 +15,7 @@
 - App update / Engine based update labels and readable What’s changed summaries in the popup. Both offer Install update / Remind me later; engine installation requires consent before waiting for active mirrors to stop.
 - App upgrades retain the current mirroring engine and roll back app files if replacement fails. Version 1.1.0 users need to install this release once before app-update prompts become available.
 - Android Mirror branding and our GitHub repository in displayed connection logs, while preserving error/device details and original licence notices.
-- Native notifications use the Android Mirror logo and a dedicated Windows application identity instead of stock information artwork.
+- Initial Windows notification identity metadata; its missing shortcut registration is corrected in 1.1.2.
 - One newly discovered, authorized device opens immediately with automatic connection enabled, including alongside existing mirrors. Explicit Stop and deselection choices are retained.
 
 ## 1.1.0 — 2026-10-15

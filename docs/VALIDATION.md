@@ -1,4 +1,4 @@
-# Validation — Android Mirror 1.1.1
+# Validation — Android Mirror 1.1.2
 
 ## Automated coverage
 
@@ -25,7 +25,7 @@
 
 The app's `--self-check` path exercises background startup, tray restore, close-to-tray, single-instance activation, light/dark switching, Settings navigation, embedded SVG artwork, QR rendering, manual pairing screens, Advanced search and reset, rounded checkbox and chevron templates, and modal confirmation acceptance/cancellation. Checks suppress notifications, pairing, mirroring, preference writes, and Windows startup changes.
 
-`src/build-setup.ps1` performs seven installer checks using a workspace fixture: path traversal rejection; full installation with the branded engine and a single app launcher; native shortcut creation; reinstall preservation of unrelated files; app upgrade preservation of a customized engine and app updater; rollback after a locked file interrupts app replacement; and uninstall removal of owned files while retaining unrelated files. It does not install into Program Files or change Windows installation settings.
+`src/build-setup.ps1` performs eight installer checks using a workspace fixture: path traversal rejection; full installation with the branded engine and a single app launcher; native shortcut identity, target and icon; shortcut repair and cleanup without removing another installation's link; reinstall preservation of unrelated files; app upgrade preservation of a customized engine and app updater; rollback after a locked file interrupts app replacement; and uninstall removal of owned files while retaining unrelated files. It does not install into Program Files or change Windows installation settings.
 
 `src/test-screen-sharing.ps1` creates an animated SDL window using the bundled SDL3.dll and reads changing pixel samples through the real Windows Graphics Capture and D3D11 APIs. Checks cover background minimize, continuing captured frames, repeated minimize, taskbar-style activation, restored bounds, maximized restore, disabling/re-enabling the setting, and cleanup. Background samples continued changing across more than 100 captured frames. This validates the rendering/capture path, not an OBS recording or a Discord call. Windows SDK metadata is needed only to compile this optional test.
 
@@ -36,6 +36,8 @@ App-owned preview rendering covers dark/light settings, several devices, QR pair
 WPF bitmap previews use opaque backgrounds. Windows draws desktop acrylic outside that renderer, so screenshots do not capture its real desktop blur. Material activation is checked through the native API result.
 
 The real official release API and Windows x64 download were also validated: engine 5.0.1 was downloaded, verified against its published SHA-256, and safely extracted as 16 files in a test staging folder. The installed engine was not replaced during this check. A full native shell self-check passed for the updated controls, Advanced editors, and dialog behavior.
+
+The 1.1.2 notification fix reads back `System.AppUserModel.ID`, the target executable and its icon from real native shortcuts. A live per-user registration check confirms Windows' Start app resolver reports **Android Mirror** for the process identity. The shell self-check exercises all four notification routes (background, device connected, app update, engine update) without delivering OS notifications, checking their distinct titles and details, native information symbol, and exact embedded logo bytes. All four use one delivery function and registered identity. Updater error dialogs retain Android Mirror titles and their appropriate error/information severity; installer status stays within the branded setup window. The desktop capture tool did not expose the transient notification banner during this check, so its final rendered appearance still needs visual confirmation.
 
 ## Hardware and release limitations
 

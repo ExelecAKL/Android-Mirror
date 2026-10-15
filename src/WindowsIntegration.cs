@@ -105,16 +105,18 @@ namespace AndroidMirror
         DateTime fadeStart;
         int frame;
         bool dark;
+        public string IdentityError { get; private set; }
         public event Action OpenRequested, QuitRequested, MirrorRequested, SettingsRequested;
         public event Action<string> Error;
-        void Notify(string title, string text) { if (!NativeNotifications.Show(icon, brandIcon, title, text)) icon.ShowBalloonTip(5000, title, text, Forms.ToolTipIcon.None); }
+        void Notify(string title, string text) { NativeNotifications.Show(icon, title, text); }
         public void NotifyUpdate(string version) { Notify("Engine based update", "Mirroring engine " + version + " is available. Open Android Mirror to review what changed."); }
         public void NotifyAppUpdate(string version) { Notify("Android Mirror update", "Android Mirror " + version + " is available. Open the app to update."); }
         [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr handle);
         public TrayIntegration(string executable, string startupName, bool visible = true, bool registerIdentity = true)
         {
             this.executable = executable; this.startupName = startupName;
-            if (visible && registerIdentity) try { NativeNotifications.Register(executable); } catch (Exception) { }
+            if (visible && registerIdentity) try { NativeNotifications.Register(executable); }
+            catch (Exception error) { IdentityError = "Couldn’t register Windows notification identity: " + error.Message; }
             using (var artwork = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.ico"))
             using (var source = new Icon(artwork)) brandIcon = (Icon)source.Clone();
             idleIcon = (Icon)brandIcon.Clone();

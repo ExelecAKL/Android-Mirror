@@ -147,14 +147,7 @@ namespace AndroidMirrorSetup
         }
         public static void Shortcut(string destination, string executable, string workingDirectory)
         {
-            dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
-            try
-            {
-                dynamic shortcut = shell.CreateShortcut(destination);
-                try { shortcut.TargetPath = executable; shortcut.WorkingDirectory = workingDirectory; shortcut.IconLocation = executable + ",0"; shortcut.Description = "Mirror and manage Android devices."; shortcut.Save(); }
-                finally { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut); }
-            }
-            finally { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); }
+            AndroidMirror.WindowsAppIdentity.CreateShortcut(destination, executable, workingDirectory);
         }
         public static void Uninstall(string target, bool windowsIntegration, Action<string> progress)
         {
@@ -175,6 +168,7 @@ namespace AndroidMirrorSetup
                 File.Delete(Path.Combine(programs, "Android Mirror.lnk"));
                 if (Directory.Exists(programs) && !Directory.EnumerateFileSystemEntries(programs).Any()) Directory.Delete(programs);
                 File.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), "Android Mirror.lnk"));
+                AndroidMirror.WindowsAppIdentity.RemoveShortcutIfOwned(AndroidMirror.WindowsAppIdentity.UserShortcut, Path.Combine(target, "Android Mirror.exe"));
                 using (var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true)) if (key != null) key.DeleteValue("ScrcpyConnect-" + StableId(Path.GetFullPath(target).TrimEnd('\\') + "\\"), false);
                 string ownExecutable = Assembly.GetExecutingAssembly().Location;
                 if (String.Equals(Path.GetDirectoryName(ownExecutable), target, StringComparison.OrdinalIgnoreCase))

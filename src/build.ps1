@@ -37,6 +37,7 @@ $arguments += Join-Path $sourceDirectory 'AppUpdates.cs'
 $arguments += Join-Path $sourceDirectory 'AppUpdatesUi.cs'
 $arguments += Join-Path $sourceDirectory 'DiagnosticText.cs'
 $arguments += Join-Path $sourceDirectory 'NativeNotifications.cs'
+$arguments += Join-Path $sourceDirectory 'WindowsAppIdentity.cs'
 $arguments += Join-Path $sourceDirectory 'ReleaseNotesSummary.cs'
 if ((Get-FileHash -LiteralPath $qrLibrary -Algorithm SHA256).Hash -ne '912272105F42564AC49693F997CDE1B05C3BB5D1A7640B555CD2BF6CD852348C') { throw 'The vendored QRCoder library does not match the pinned version.' }
 $arguments += '/reference:' + $qrLibrary
