@@ -12,7 +12,7 @@ using Windows.Graphics.DirectX.Direct3D11;
 class CaptureProbe
 {
     static IDirect3DDevice captureDevice;
-    static int bufferWidth,bufferHeight,inputRevision=1,commandSequence;
+    static int bufferWidth,bufferHeight,inputRevision=Environment.TickCount,commandSequence;
     [ComImport, Guid("3628e81b-3cac-4c60-b7f4-23ce0e0c3356"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IItemInterop { IntPtr CreateForWindow(IntPtr hwnd, ref Guid iid); IntPtr CreateForMonitor(IntPtr monitor, ref Guid iid); }
     [ComImport, Guid("A9B3D012-3DF2-4EE3-B8D1-8695F457D3C1"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -74,17 +74,18 @@ class CaptureProbe
                         Rotate(args[2],300,400);Wait(()=>ClientSize(hwnd,300,400),"portrait rotation while parked");
                         Require(Sample(pool,device,context,ref staging,"rotated background sharing",1300)>10,"Rotated background picture must change");
                         Require(watcher.IsParked&&OutsideDesktop(hwnd),"Rotation must not reopen the mirror");
-                        Interlocked.Increment(ref inputRevision);ShowWindow(hwnd,6);Wait(()=>!IsIconic(hwnd),"repeat minimize");
+                        ShowWindow(hwnd,6);Wait(()=>!IsIconic(hwnd),"repeat minimize");
                         UserActivate(hwnd);Wait(()=>!watcher.IsParked,"taskbar activation restore");
-                        Thread.Sleep(350);Require(ClientSize(hwnd,300,400),"Restoring must keep the engine's latest portrait dimensions, with no stale landscape letterbox");
+                        Thread.Sleep(350);Rect restoredClient;GetClientRect(hwnd,out restoredClient);Console.WriteLine("Restored client: "+restoredClient.Right+"x"+restoredClient.Bottom+"; iconic="+IsIconic(hwnd));Require(ClientSize(hwnd,300,400),"Restoring must keep the engine's latest portrait dimensions, with no stale landscape letterbox");
                         Rect restored;GetWindowRect(hwnd,out restored);Console.WriteLine("Original: "+original.Left+","+original.Top+","+original.Right+","+original.Bottom+"; restored: "+restored.Left+","+restored.Top+","+restored.Right+","+restored.Bottom);Require(Math.Abs(restored.Left-original.Left)<8&&Math.Abs(restored.Top-original.Top)<8,"Original position restored");
                         Require(Sample(pool,device,context,ref staging,"after restore",1600)>10,"Restored picture must change");
                         Rotate(args[2],400,300);Wait(()=>ClientSize(hwnd,400,300),"landscape rotation after restore");
                         ShowWindow(hwnd,6);Wait(()=>watcher.IsParked&&!IsIconic(hwnd),"second background minimize");
+                        Activate(hwnd);Thread.Sleep(150);Require(watcher.IsParked&&OutsideDesktop(hwnd),"A foreground event during parking without fresh input must not undo minimize");
                         Rotate(args[2],300,400);Wait(()=>ClientSize(hwnd,300,400),"second portrait rotation");
                         Rotate(args[2],400,300);Wait(()=>ClientSize(hwnd,400,300),"second landscape rotation");
-                        Activate(hwnd);Thread.Sleep(600);Require(watcher.IsParked&&OutsideDesktop(hwnd),"A programmatic foreground event without new user input must not undo minimize");
-                        UserActivate(hwnd);Wait(()=>!watcher.IsParked,"explicit user activation after stale foreground");
+                        Interlocked.Exchange(ref inputRevision,Environment.TickCount);Thread.Sleep(600);Require(watcher.IsParked&&OutsideDesktop(hwnd),"Later unrelated input must not turn stale foreground into a restore request");
+                        Interlocked.Exchange(ref inputRevision,Environment.TickCount);ShowWindow(hwnd,6);Wait(()=>!watcher.IsParked,"explicit taskbar toggle after stale foreground");
                         Require(ClientSize(hwnd,400,300),"Repeated rotations must preserve the current landscape dimensions");
                         ShowWindow(hwnd,3);Thread.Sleep(400);ShowWindow(hwnd,6);Wait(()=>watcher.IsParked&&!IsIconic(hwnd),"maximized background minimize");
                         Require(Sample(pool,device,context,ref staging,"maximized background sharing",1600)>10,"Maximized background picture must change");
@@ -113,8 +114,12 @@ class CaptureProbe
         } catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
         finally { if(staging!=IntPtr.Zero)Marshal.Release(staging);if(context!=IntPtr.Zero)Marshal.Release(context);if(device!=IntPtr.Zero)Marshal.Release(device); }
     }
-    static void UserActivate(IntPtr hwnd){Interlocked.Increment(ref inputRevision);Activate(hwnd);}
-    static void Rotate(string path,int width,int height){File.WriteAllText(path+".command",(++commandSequence)+" "+width+" "+height);}
+    static void UserActivate(IntPtr hwnd){Interlocked.Exchange(ref inputRevision,Environment.TickCount);if(GetForegroundWindow()==hwnd)ShowWindow(hwnd,6);else Activate(hwnd);}
+    static void Rotate(string path,int width,int height){
+        string command=path+".command",next=command+".next";
+        File.WriteAllText(next,(++commandSequence)+" "+width+" "+height);
+        if(File.Exists(command))File.Replace(next,command,null);else File.Move(next,command);
+    }
     static bool ClientSize(IntPtr hwnd,int width,int height){Rect rect;GetClientRect(hwnd,out rect);return Math.Abs(rect.Right-width)<=2&&Math.Abs(rect.Bottom-height)<=2;}
     static bool OutsideDesktop(IntPtr hwnd){Rect rect;GetWindowRect(hwnd,out rect);int x=GetSystemMetrics(76),y=GetSystemMetrics(77);return rect.Right<=x||rect.Bottom<=y||rect.Left>=x+GetSystemMetrics(78)||rect.Top>=y+GetSystemMetrics(79);}
     static void Activate(IntPtr hwnd){uint pid;uint target=GetWindowThreadProcessId(hwnd,out pid),foreground=GetWindowThreadProcessId(GetForegroundWindow(),out pid),current=GetCurrentThreadId();bool a=AttachThreadInput(current,foreground,true),b=AttachThreadInput(current,target,true);try{Console.WriteLine("Activate: "+SetForegroundWindow(hwnd)+"; input: "+a+","+b);}finally{if(b)AttachThreadInput(current,target,false);if(a)AttachThreadInput(current,foreground,false);}} static void Require(bool condition,string message){if(!condition)throw new Exception(message);}

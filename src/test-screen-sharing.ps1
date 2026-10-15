@@ -41,4 +41,5 @@ try {
     if (-not $target.HasExited) { $target.CloseMainWindow() | Out-Null; if (-not $target.WaitForExit(3000)) { $target.Kill() } }
     if (Test-Path -LiteralPath $handleFile) { Remove-Item -LiteralPath $handleFile }
     if (Test-Path -LiteralPath ($handleFile + '.command')) { Remove-Item -LiteralPath ($handleFile + '.command') }
+    if (Test-Path -LiteralPath ($handleFile + '.command.next')) { Remove-Item -LiteralPath ($handleFile + '.command.next') }
 }

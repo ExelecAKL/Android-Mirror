@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.4 — 2026-10-15
+
+- Fix a remaining minimize race found during physical phone testing: unrelated later PC input no longer restores a mirror whose foreground state was left behind by the minimize transition.
+- Handle a taskbar click that Windows reports as another minimize. Wait for that transition before restoring, keeping the last drawable portrait/landscape size.
+- Ignore temporary minimized caption-strip bounds instead of caching them as the mirror's video dimensions.
+- Extend the isolated SDL/Windows Graphics Capture checks with stale foreground plus later input, taskbar toggling, and retained client dimensions. Use atomic fixture commands to avoid test-only file-sharing races.
+- Load the ZIP assembly explicitly in packaging scripts so the documented Windows PowerShell build commands work in a fresh session.
+- Physically verify background capture and landscape/portrait resizing on a connected phone. Restore and maximized round trips remain covered by the isolated fixture; a new OBS/Discord session remains unverified.
+- Publish as a newer app version so existing installations receive the normal update prompt, retaining settings and the current engine.
+
 ## 1.1.3 — 2026-10-15
 
 - Keep the engine's latest window dimensions when restoring a mirror after rotation, preventing stale portrait/landscape sizing and the resulting large gray letterbox areas.

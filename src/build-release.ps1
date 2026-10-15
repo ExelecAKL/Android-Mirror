@@ -15,6 +15,7 @@ foreach ($pin in $pins | Where-Object name -ne 'platform-tools') {
     if (-not (Test-Path -LiteralPath $path) -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $pin.sha256) { throw 'Matching runtime sources are missing. Run src/fetch-runtime-sources.ps1.' }
 }
 New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $portable = Join-Path $releaseDirectory ('Android-Mirror-' + $version + '-Windows-x64.zip')
 if (Test-Path -LiteralPath $portable) { Remove-Item -LiteralPath $portable }

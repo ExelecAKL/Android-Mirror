@@ -1,4 +1,4 @@
-# Validation — Android Mirror 1.1.3
+# Validation — Android Mirror 1.1.4
 
 ## Automated coverage
 
@@ -27,7 +27,7 @@ The app's `--self-check` path exercises background startup, tray restore, close-
 
 `src/build-setup.ps1` performs eight installer checks using a workspace fixture: path traversal rejection; full installation with the branded engine and a single app launcher; native shortcut identity, target and icon; shortcut repair and cleanup without removing another installation's link; reinstall preservation of unrelated files; app upgrade preservation of a customized engine and app updater; rollback after a locked file interrupts app replacement; and uninstall removal of owned files while retaining unrelated files. It does not install into Program Files or change Windows installation settings.
 
-`src/test-screen-sharing.ps1` creates an animated SDL window using the bundled SDL3.dll and reads changing pixel samples through the real Windows Graphics Capture and D3D11 APIs. Its fixture models content-driven portrait/landscape resizing and gray letterboxing. Checks cover continuing background frames, repeated minimize, rotations while parked and after restore, preserved client dimensions, activation without fresh input, maximized rotation and unmaximize, setting changes, and cleanup. Capture buffers and readback textures are recreated when the window dimensions change. Background samples continued changing across more than 100 captured frames. Activation checks use controlled input timestamps alongside real native foreground events; physical taskbar/Alt+Tab interaction is not automated by this fixture.
+`src/test-screen-sharing.ps1` creates an animated SDL window using the bundled SDL3.dll and reads changing pixel samples through the real Windows Graphics Capture and D3D11 APIs. Its fixture models content-driven portrait/landscape resizing and gray letterboxing. Checks cover continuing background frames, repeated minimize, rotations while parked and after restore, preserved client dimensions, activation during the parking transition, unrelated later input with a stale foreground state, taskbar toggling, maximized rotation and unmaximize, setting changes, and cleanup. Capture buffers and readback textures are recreated when the window dimensions change. Background samples continued changing across more than 100 captured frames. Activation checks use controlled input timestamps alongside real native foreground events; physical taskbar/Alt+Tab interaction is not automated by this fixture. Commands to the SDL fixture are replaced atomically so readers cannot see a partially written rotation request.
 
 Running with `-Baseline` against the fetched `v1.1.2` source tag reproduces the stale-size restoration failure. The corrected implementation passes the same sequence, including rotation from a parked maximized window. This validates the SDL rendering/capture path, not a fresh OBS recording, Discord call, or mixed-DPI multi-monitor setup. Windows SDK metadata is needed only to compile this optional test.
 
@@ -43,7 +43,9 @@ The 1.1.2 notification fix reads back `System.AppUserModel.ID`, the target execu
 
 ## Hardware and release limitations
 
-The bundled ADB event stream initializes successfully. Nearby wireless services may be discovered without being paired or connected. Automated simulations do not verify a real device's USB cable cycle, QR camera scan, TLS pairing, audio output, PC input, or USB/Wi-Fi handover. Those need physical device validation on the user's network.
+An authorized USB-connected itel S666LN was tested with the real bundled engine and a read-only Windows Graphics Capture observer. Physical minimize plus portrait/landscape changes exposed the remaining foreground-polling race in 1.1.3. A development build with event-driven restoration then kept the mirror outside the desktop through landscape-to-portrait rotation and for roughly two minutes afterward, while capture frames continued. The client's dimensions changed from about 1040×468 to 468×1040 without being forced back to the old shape. The phone's original portrait rotation lock was restored. The user disconnected before deliberate physical restore and maximized round trips; those paths were validated with the isolated SDL fixture. No new OBS recording or Discord call was made.
+
+The bundled ADB event stream initializes successfully. Nearby wireless services may be discovered without being paired or connected. Automated simulations do not verify a real device's USB cable cycle, QR camera scan, TLS pairing, audio output, PC input, or USB/Wi-Fi handover. Those still need physical device validation on the user's network.
 
 Windows notification delivery depends on Windows notification/focus settings. App confirmations use a WPF implementation of the Windows 11 content-dialog pattern, including themed surfaces, dimming, focus containment, and safe cancellation. Wireless pairing requires Android 11+ and a network that allows device-to-PC connections; older USB-assisted Wi-Fi uses unencrypted legacy ADB. Devices without a consistent reported hardware serial can appear as separate USB/Wi-Fi entries.
 

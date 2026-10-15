@@ -43,7 +43,11 @@ class SdlCaptureTarget
                 if(kind==0x20B&&pendingWidth>0&&Windowed(w)){ResizeForContent(w,pendingWidth,pendingHeight);pendingWidth=0;}
             }
             if(File.Exists(commandPath)) {
-                string command;try{command=File.ReadAllText(commandPath);}catch(IOException){command="";}
+                string command;
+                try {
+                    using(var stream=new FileStream(commandPath,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
+                    using(var reader=new StreamReader(stream))command=reader.ReadToEnd();
+                } catch(IOException){command="";}
                 var words=command.Split(' ');int nextWidth,nextHeight;
                 if(command!=lastCommand&&words.Length==3&&Int32.TryParse(words[1],out nextWidth)&&Int32.TryParse(words[2],out nextHeight)) {
                     lastCommand=command;int oldWidth=contentWidth,oldHeight=contentHeight;contentWidth=nextWidth;contentHeight=nextHeight;

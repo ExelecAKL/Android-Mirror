@@ -21,12 +21,17 @@ namespace AndroidMirror
         uint threadId;
         IntPtr window;
         Rect savedBounds;
+        Rect parkedBounds;
         Placement savedPlacement;
         bool haveBounds, wasMaximized, moving;
         bool minimizePending;
+        bool restorePending;
+        bool restoreFromMinimize;
+        int restoreNotBefore;
         int minimizeTick;
         int addedStyles;
         uint parkedInput;
+        uint parkedTick;
         IntPtr savedMonitor;
         WinEvent callback;
         IntPtr foregroundHook, minimizeHook, locationHook;
@@ -81,7 +86,7 @@ namespace AndroidMirror
         {
             if (!OwnsWindow())
             {
-                window = IntPtr.Zero; parked = false; haveBounds = false; minimizePending = false; addedStyles = 0; savedMonitor = IntPtr.Zero;
+                window = IntPtr.Zero; parked = false; haveBounds = false; minimizePending = false; restorePending = false; restoreFromMinimize = false; addedStyles = 0; savedMonitor = IntPtr.Zero;
                 EnumWindows(delegate(IntPtr candidate, IntPtr unused) {
                     uint owner; GetWindowThreadProcessId(candidate, out owner);
                     if (owner != processId || !IsWindowVisible(candidate)) return true;
@@ -92,6 +97,7 @@ namespace AndroidMirror
             }
             if (!OwnsWindow()) return;
             if (!enabled) { if (parked) Restore(); else Remember(); return; }
+            if (parked && restorePending) { if (unchecked(Environment.TickCount - restoreNotBefore) >= 0) Restore(); return; }
             if (IsIconic(window))
             {
                 // MINIMIZESTART can arrive before Windows finishes assigning
@@ -108,8 +114,8 @@ namespace AndroidMirror
             minimizePending = false;
             if (parked)
             {
-                if (UserRequestedRestore()) { Restore(); return; }
-                Rect current; if (GetWindowRect(window, out current) && Intersects(current, Desktop())) MoveOutside(current);
+                Rect current;
+                if (DrawableBounds(out current)) { parkedBounds = current; if (Intersects(current, Desktop())) MoveOutside(current); }
             }
             else Remember();
         }
@@ -120,9 +126,16 @@ namespace AndroidMirror
             {
                 // A delayed activation from ShowWindow/SDL is not a taskbar or
                 // Alt+Tab request. In particular, don't undo the minimize click.
-                if (kind == Foreground && parked && UserRequestedRestore()) Restore();
-                else if (enabled && kind == MinimizeStart) { minimizePending = true; minimizeTick = Environment.TickCount; }
-                else if (kind == LocationChanged && objectId == 0 && !parked && !IsIconic(window)) Remember();
+                if (kind == Foreground && parked && GetForegroundWindow() == window && UserRequestedRestore(time, true)) RequestRestore(false);
+                else if (enabled && kind == MinimizeStart)
+                {
+                    // Clicking the taskbar button of an offscreen window that
+                    // still owns foreground may arrive as another minimize.
+                    if (parked && UserRequestedRestore(time)) RequestRestore(true);
+                    else { minimizePending = true; minimizeTick = Environment.TickCount; }
+                }
+                else if (kind == LocationChanged && objectId == 0 && !IsIconic(window))
+                { if (parked) { Rect bounds; if (DrawableBounds(out bounds)) parkedBounds = bounds; } else Remember(); }
             }
             catch (Exception error) { if (log != null) log("Couldn’t update the background mirror window: " + error.Message); }
         }
@@ -130,11 +143,33 @@ namespace AndroidMirror
         {
             if (!OwnsWindow() || IsIconic(window) || parked) return;
             Rect bounds; var placement = new Placement { Length = Marshal.SizeOf(typeof(Placement)) };
-            if (!GetWindowRect(window, out bounds) || bounds.Right <= bounds.Left || bounds.Bottom <= bounds.Top || !GetWindowPlacement(window, ref placement)) return;
+            if (!DrawableBounds(out bounds) || !GetWindowPlacement(window, ref placement)) return;
             savedBounds = bounds; savedPlacement = placement; haveBounds = true; wasMaximized = IsZoomed(window);
             savedMonitor = MonitorFromRect(ref bounds, 2);
         }
-        bool UserRequestedRestore() { return GetForegroundWindow() == window && inputTick() != parkedInput; }
+        bool UserRequestedRestore(uint eventTime, bool activation = false)
+        {
+            int sinceParking = unchecked((int)(eventTime - parkedTick));
+            if (sinceParking < 0) return false;
+            // A new activation after the parking transition is explicit intent,
+            // including accessibility tools that don't synthesize PC input.
+            if (activation && sinceParking >= 600) return true;
+            uint input = inputTick(); int elapsed = unchecked((int)(eventTime - input));
+            return input != parkedInput && elapsed >= 0 && elapsed <= 500;
+        }
+        bool DrawableBounds(out Rect bounds)
+        {
+            Rect client;
+            return GetWindowRect(window, out bounds) && GetClientRect(window, out client)
+                && bounds.Width > 0 && bounds.Height > 0 && client.Width > 0 && client.Height > 0
+                && bounds.Left > -30000 && bounds.Top > -30000;
+        }
+        void RequestRestore(bool minimizing)
+        {
+            if (minimizing) { restoreNotBefore = unchecked(Environment.TickCount + 200); restoreFromMinimize = true; }
+            else if (!restorePending) { restoreNotBefore = Environment.TickCount; restoreFromMinimize = false; }
+            restorePending = true;
+        }
         void Park()
         {
             if (!enabled || !OwnsWindow()) return;
@@ -153,12 +188,15 @@ namespace AndroidMirror
                 }
                 if (!parked)
                 {
+                    parkedBounds = savedBounds;
                     int style = GetWindowLong(window, -20);
                     addedStyles = 0x08040000 & ~style; // NOACTIVATE + APPWINDOW
                     SetWindowLong(window, -20, style | 0x08040000);
                 }
-                // A second minimize click is also not a request to restore.
+                // Queue-time activation checks must refer to this transition,
+                // including a repeated minimize that needs parking again.
                 parkedInput = inputTick();
+                parkedTick = unchecked((uint)Environment.TickCount);
                 bool alreadyParked = parked;
                 parked = true;
                 if (wasMaximized && !alreadyParked)
@@ -170,7 +208,7 @@ namespace AndroidMirror
                     SetWindowPlacement(window, ref placement);
                 }
                 else ShowWindow(window, 4);
-                Rect current; if (!GetWindowRect(window, out current)) current = savedBounds;
+                Rect current; if (DrawableBounds(out current)) parkedBounds = current; else current = parkedBounds;
                 MoveOutside(current);
             }
             finally { moving = false; }
@@ -204,6 +242,20 @@ namespace AndroidMirror
             moving = true;
             try
             {
+                if (IsIconic(window) || restoreFromMinimize)
+                {
+                    // A taskbar toggle may minimize this non-iconic window.
+                    // Windows can retain an older rcNormalPosition size; keep
+                    // the actual dimensions last rendered by SDL instead.
+                    var placement = new Placement { Length = Marshal.SizeOf(typeof(Placement)) };
+                    if (GetWindowPlacement(window, ref placement) && parkedBounds.Width > 0 && parkedBounds.Height > 0)
+                    {
+                        placement.Normal.Right = placement.Normal.Left + parkedBounds.Width;
+                        placement.Normal.Bottom = placement.Normal.Top + parkedBounds.Height;
+                        placement.Flags &= ~2; placement.Show = 4; SetWindowPlacement(window, ref placement);
+                    }
+                    else ShowWindow(window, 4);
+                }
                 Rect current; if (!GetWindowRect(window, out current)) return;
                 if (wasMaximized)
                 {
@@ -224,7 +276,7 @@ namespace AndroidMirror
                     SetWindowPos(window, IntPtr.Zero, bounds.Left, bounds.Top, 0, 0, NoActivate | NoZOrder | NoSize | NoOwnerZOrder);
                 }
                 SetWindowLong(window, -20, GetWindowLong(window, -20) & ~addedStyles); addedStyles = 0;
-                parked = false; Remember();
+                parked = false; restorePending = false; restoreFromMinimize = false; Remember();
             }
             finally { moving = false; }
         }
@@ -257,6 +309,7 @@ namespace AndroidMirror
         [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint process);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr hwnd, StringBuilder name, int length);
         [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out Rect bounds);
+        [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr hwnd, out Rect bounds);
         [DllImport("user32.dll")] static extern bool GetWindowPlacement(IntPtr hwnd, ref Placement placement);
         [DllImport("user32.dll")] static extern bool SetWindowPlacement(IntPtr hwnd, ref Placement placement);
         [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int command);

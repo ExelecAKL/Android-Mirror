@@ -22,6 +22,7 @@ $previewPath = Join-Path $setupDirectory 'setup-preview.exe'
 & $compiler /nologo /target:winexe /optimize+ ('/out:' + $previewPath) ('/win32manifest:' + (Join-Path $sourceDirectory 'app.manifest')) @references @uiReferences @uiResources @uiSources
 if ($LASTEXITCODE -ne 0) { throw 'Installer preview build failed.' }
 
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $payloadPath = Join-Path $setupDirectory 'payload.zip'
 if (Test-Path -LiteralPath $payloadPath) { Remove-Item -LiteralPath $payloadPath }

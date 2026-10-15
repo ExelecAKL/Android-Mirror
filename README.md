@@ -45,7 +45,7 @@ All options live behind one **Settings** icon. Audio and control choices are sav
 
 ### Install
 
-1. Download **Android-Mirror-1.1.3-Setup.exe** from [Releases](https://github.com/ExelecAKL/Android-Mirror/releases/latest).
+1. Download **Android-Mirror-1.1.4-Setup.exe** from [Releases](https://github.com/ExelecAKL/Android-Mirror/releases/latest).
 2. Run the installer and approve the Windows elevation prompt.
 3. Open **Android Mirror** from Start.
 
@@ -53,9 +53,9 @@ The installer uses `C:\Program Files\Android Mirror`, adds a Start menu shortcut
 
 <p align="center"><img src="assets/screenshots/installer-dark.png" alt="Android Mirror's modern dark installer with app icon, installation location and rounded controls" width="520" /></p>
 
-For a portable copy, extract **Android-Mirror-1.1.3-Windows-x64.zip** and open `Android Mirror.exe`. Keep its `engine` folder beside it. The release executables are currently unsigned.
+For a portable copy, extract **Android-Mirror-1.1.4-Windows-x64.zip** and open `Android Mirror.exe`. Keep its `engine` folder beside it. The release executables are currently unsigned.
 
-**Already using 1.1.1 or 1.1.2?** The next automatic app-release check offers 1.1.3 with **Install update / Remind me later**. Checks run daily when enabled. Portable copies open the download page. **Using 1.1.0?** Install the latest release once; automatic app-release checks start with 1.1.1. Your preferences and installed engine are retained on upgrade.
+**Already using 1.1.1–1.1.3?** The next automatic app-release check offers 1.1.4 with **Install update / Remind me later**. Checks run daily when enabled. Portable copies open the download page. **Using 1.1.0?** Install the latest release once; automatic app-release checks start with 1.1.1. Your preferences and installed engine are retained on upgrade.
 
 ### Connect with USB
 
@@ -151,7 +151,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\src\fetch-runtime-sources.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\src\build-release.ps1
 ```
 
-The first command builds the app and runs the connection tests. The second builds and validates the installer. The third downloads and verifies matching upstream runtime sources. The last creates the portable ZIP, versioned installer, runtime source bundle, release notes, and checksums in `releases/1.1.3`. The optional `src/test-screen-sharing.ps1` live capture test requires Windows SDK metadata and an interactive Windows session. Add `-Baseline` to demonstrate the rotation regression in the fetched `v1.1.2` source tag.
+The first command builds the app and runs the connection tests. The second builds and validates the installer. The third downloads and verifies matching upstream runtime sources. The last creates the portable ZIP, versioned installer, runtime source bundle, release notes, and checksums in `releases/1.1.4`. The optional `src/test-screen-sharing.ps1` live capture test requires Windows SDK metadata and an interactive Windows session. Add `-Baseline` to demonstrate the rotation regression in the fetched `v1.1.2` source tag.
 
 ```text
 Android Mirror.exe   Desktop app
