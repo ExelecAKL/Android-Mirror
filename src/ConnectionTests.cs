@@ -46,6 +46,8 @@ static class ConnectionTests
             if (args.Length > 0 && args[0] == "pair") { string secret = Console.ReadLine(); Console.WriteLine(secret == "123456" && args.Length == 2 ? "Successfully paired using stdin" : "FAILED"); return 0; }
             if (args.Length > 0 && args[0] == "wait") { Thread.Sleep(30000); return 0; }
             if (args.Contains("--live-adb")) return LiveAdb();
+            if (args.Contains("--live-updates")) return EngineUpdateTests.Live();
+            if (args.Contains("--process-tests")) { MultiDeviceTests.ProcessTest(); ProcessTest(); Console.WriteLine("PASS isolated real child process lifecycle checks"); return 0; }
             Test("ADB device names and authorization parsing", () => {
                 var devices = Device.Parse("one\tdevice usb:1 model:Pixel_9 transport_id:1\ntwo\tunauthorized\nthree\toffline\n");
                 Assert(devices.Count == 3 && devices[0].Name == "Pixel 9" && devices[1].State == "unauthorized" && devices[2].State == "offline", "Incorrect snapshot parsing");
@@ -138,6 +140,8 @@ static class ConnectionTests
             });
             MultiDeviceTests.Run(Test);
             WirelessTests.Run(Test);
+            EngineFeatureTests.Run(Test);
+            EngineUpdateTests.Run(Test);
             Test("ADB stream handles fragmented frames, device changes, and server restart", () => ProtocolTest().GetAwaiter().GetResult());
             Test("Real child process drains logs and never overlaps on quick reattach", ProcessTest);
             Console.WriteLine(count + " tests passed."); return 0;
@@ -167,7 +171,7 @@ static class ConnectionTests
     {
         string directory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".process-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        string executable = Path.Combine(directory, "scrcpy.exe");
+        string executable = Path.Combine(directory, EngineLayout.RuntimeExecutable);
         File.Copy(System.Reflection.Assembly.GetExecutingAssembly().Location, executable);
         var actions = new ConcurrentQueue<Action>();
         var output = new ConcurrentQueue<string>();
@@ -190,8 +194,9 @@ static class ConnectionTests
                 controller.Connect();
                 Pump(actions, controller, () => output.Count(line => line.StartsWith("FAKE_MIRROR_READY")) == 3);
                 controller.Dispose();
-                Assert(!Process.GetProcessesByName("scrcpy").Any(process => { try { return String.Equals(process.MainModule.FileName, executable, StringComparison.OrdinalIgnoreCase); } catch { return false; } finally { process.Dispose(); } }), "Launcher shutdown left a child process running");
+                Assert(!Process.GetProcessesByName(Path.GetFileNameWithoutExtension(EngineLayout.RuntimeExecutable)).Any(process => { try { return String.Equals(process.MainModule.FileName, executable, StringComparison.OrdinalIgnoreCase); } catch { return false; } finally { process.Dispose(); } }), "Launcher shutdown left a child process running");
             }
+            catch (Exception error) { throw new Exception("Child lifecycle failure: starts=" + starts + ", active=" + (controller.Active != null) + ", stopping=" + controller.Stopping + ", logs=" + String.Join(" | ", output), error); }
             finally
             {
                 File.WriteAllText(Path.Combine(directory, "release.txt"), "exit");

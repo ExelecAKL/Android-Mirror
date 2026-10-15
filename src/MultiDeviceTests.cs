@@ -38,6 +38,23 @@ static class MultiDeviceTests
     static void Assert(bool value, string message) { if (!value) throw new Exception(message); }
     public static void Run(Action<string, Action> test)
     {
+        test("Removing a device stops only its mirror and clears its saved profile", () => {
+            using (var f = new Fixture()) {
+                f.Devices("phone\tdevice\ntablet\tdevice\n"); f.Controller.Select("phone", true); f.Controller.Select("tablet", true);
+                f.Preferences.WirelessPeers.Add(new WirelessPeer { PhysicalId = "phone", Endpoint = "192.168.1.5:38001" });
+                var phone = f.Sessions.Single(s => s.Serial == "phone"); var tablet = f.Sessions.Single(s => s.Serial == "tablet");
+                f.Controller.Remove("phone");
+                Assert(phone.Stops > 0 && tablet.Stops == 0 && f.Preferences.Profiles.All(p => p.Serial != "phone") && f.Preferences.WirelessPeers.Count == 0, "Remove interrupted another device or left saved settings");
+                f.Devices("phone\tdevice\ntablet\tdevice\n"); Assert(f.Controller.Slots.All(s => s.Profile.Serial != "phone"), "Removed device immediately reappeared");
+            }
+        });
+        test("A removed device returns with defaults after disconnecting and reconnecting", () => {
+            using (var f = new Fixture()) {
+                f.Controller.SetAutoReconnect(false); f.Devices("phone\tdevice\n"); f.Controller.SetOptions("phone", false, false); f.Controller.Remove("phone");
+                f.Devices(""); f.Devices("phone\tdevice\n");
+                Assert(f.Slot("phone").Profile.Options.AudioEnabled && f.Slot("phone").Profile.Options.ControlEnabled && !f.Slot("phone").Profile.Selected, "Removed settings returned or the device started without being selected");
+            }
+        });
         test("Several devices are selectable without an arbitrary automatic choice", () => {
             using (var f = new Fixture()) { f.Devices("phone\tdevice model:Phone\ntablet\tdevice model:Tablet\n"); Assert(f.Sessions.Count == 0, "A device was chosen automatically"); f.Controller.Select("phone", true); f.Controller.Select("tablet", true); Assert(f.Controller.ActiveCount == 2 && f.Sessions.Count == 2, "Both devices did not mirror"); }
         });
@@ -104,10 +121,10 @@ static class MultiDeviceTests
         });
         test("Two real mirror child processes run independently", ProcessTest);
     }
-    static void ProcessTest()
+    public static void ProcessTest()
     {
         string root = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".multi-process-test-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
-        string executable = Path.Combine(root, "scrcpy.exe"); File.Copy(Assembly.GetExecutingAssembly().Location, executable);
+        string executable = Path.Combine(root, EngineLayout.RuntimeExecutable); File.Copy(Assembly.GetExecutingAssembly().Location, executable);
         var actions = new ConcurrentQueue<Action>(); var output = new ConcurrentQueue<string>();
         var preferences = new AppPreferences { AutoReconnect = false };
         using (var controller = new MultiDeviceController(preferences, profile => new MirrorProcess(root, profile.Serial, line => output.Enqueue(profile.Serial + ":" + line), profile.Options.Copy(), profile.Name), action => actions.Enqueue(action)))

@@ -2,6 +2,8 @@
 /installer/
 /releases/
 /archive/
+/tools/
+/engine/Android Mirror Engine.exe
 /Android Mirror.exe
 /scrcpy.exe
 /scrcpy-connect.exe

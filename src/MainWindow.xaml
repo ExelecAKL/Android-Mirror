@@ -7,6 +7,7 @@
     <SolidColorBrush x:Key="Canvas" Color="#F3F3F3"/>
     <SolidColorBrush x:Key="Surface" Color="White"/>
     <SolidColorBrush x:Key="PopupSurface" Color="White"/>
+    <SolidColorBrush x:Key="DialogFooter" Color="#F3F3F3"/>
     <SolidColorBrush x:Key="Text" Color="#1B1B1B"/>
     <SolidColorBrush x:Key="Muted" Color="#606060"/>
     <SolidColorBrush x:Key="Stroke" Color="#DEDEDE"/>
@@ -20,6 +21,7 @@
     <Style x:Key="{x:Static SystemParameters.FocusVisualStyleKey}" TargetType="Control"><Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="4" Margin="1"/></ControlTemplate></Setter.Value></Setter></Style>
     <Style TargetType="ScrollViewer"><Setter Property="Focusable" Value="False"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/></Style>
     <Style TargetType="Button">
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
       <Setter Property="MinHeight" Value="40"/>
       <Setter Property="Padding" Value="16,8"/>
       <Setter Property="Background" Value="{DynamicResource Accent}"/>
@@ -34,6 +36,7 @@
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource Text}"/><Setter TargetName="Surface" Property="BorderThickness" Value="2"/></Trigger>
             <Trigger Property="IsMouseOver" Value="True">
               <Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Surface" Storyboard.TargetProperty="Opacity" To="0.88" Duration="{StaticResource MotionFast}"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard></Trigger.EnterActions>
               <Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Surface" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource MotionFast}"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard></Trigger.ExitActions>
@@ -54,7 +57,7 @@
       </Setter>
     </Style>
     <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style>
-    <Style TargetType="PasswordBox"><Setter Property="Background" Value="{DynamicResource Input}"/><Setter Property="Foreground" Value="{DynamicResource Text}"/><Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/><Setter Property="Padding" Value="10,7"/><Setter Property="MinHeight" Value="36"/><Setter Property="CaretBrush" Value="{DynamicResource Text}"/></Style>
+    <Style TargetType="PasswordBox"><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Background" Value="{DynamicResource Input}"/><Setter Property="Foreground" Value="{DynamicResource Text}"/><Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/><Setter Property="Padding" Value="10,7"/><Setter Property="MinHeight" Value="36"/><Setter Property="CaretBrush" Value="{DynamicResource Text}"/></Style>
     <Style TargetType="ScrollBar">
       <Setter Property="Width" Value="10"/>
       <Setter Property="Background" Value="Transparent"/>
@@ -69,16 +72,78 @@
       </ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="Label"><Setter Property="Foreground" Value="{DynamicResource Text}"/></Style>
-    <Style TargetType="CheckBox"><Setter Property="Foreground" Value="{DynamicResource Text}"/></Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox">
+        <Grid Background="Transparent" MinHeight="28">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Border x:Name="CheckSurface" Width="20" Height="20" CornerRadius="4" Background="{DynamicResource Input}" BorderBrush="{DynamicResource Muted}" BorderThickness="1" VerticalAlignment="Center">
+            <Grid>
+              <Path x:Name="CheckMark" Data="M 0,4 L 4,8 L 12,0" Stroke="{DynamicResource AccentText}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="12" Height="8" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+              <Border x:Name="MixedMark" Width="10" Height="2" CornerRadius="1" Background="{DynamicResource AccentText}" Visibility="Collapsed"/>
+            </Grid>
+          </Border>
+          <ContentPresenter Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}"/>
+          <Border x:Name="CheckFocus" Width="26" Height="26" VerticalAlignment="Center" BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="5" Margin="-3" Visibility="Collapsed" IsHitTestVisible="False"/>
+        </Grid>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CheckSurface" Property="BorderBrush" Value="{DynamicResource Text}"/></Trigger>
+          <Trigger Property="IsChecked" Value="True"><Setter TargetName="CheckSurface" Property="Background" Value="{DynamicResource Accent}"/><Setter TargetName="CheckSurface" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/></Trigger>
+          <Trigger Property="IsChecked" Value="{x:Null}"><Setter TargetName="CheckSurface" Property="Background" Value="{DynamicResource Accent}"/><Setter TargetName="MixedMark" Property="Visibility" Value="Visible"/></Trigger>
+          <Trigger Property="IsPressed" Value="True"><Setter TargetName="CheckSurface" Property="Opacity" Value="0.75"/></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CheckFocus" Property="Visibility" Value="Visible"/></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ExpanderHeaderStyle" TargetType="ToggleButton">
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
+        <Border x:Name="HeaderSurface" Background="Transparent" CornerRadius="4" Padding="2,6">
+          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Path x:Name="Chevron" Data="M 0,0 L 4,4 L 8,0" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="8" Height="5" HorizontalAlignment="Left" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"><Path.RenderTransform><RotateTransform/></Path.RenderTransform></Path>
+            <ContentPresenter Grid.Column="1" RecognizesAccessKey="True" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+          </Grid>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="HeaderSurface" Property="Background" Value="{DynamicResource Hover}"/></Trigger>
+          <Trigger Property="IsChecked" Value="True"><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Chevron" Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)" To="180" Duration="{StaticResource MotionFast}"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="Chevron" Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)" To="0" Duration="{StaticResource MotionFast}"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="HeaderSurface" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="HeaderSurface" Property="BorderThickness" Value="1"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="Expander">
+      <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Expander">
+        <StackPanel>
+          <ToggleButton x:Name="ExpanderHeader" Style="{StaticResource ExpanderHeaderStyle}" Foreground="{TemplateBinding Foreground}" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"/>
+          <ContentPresenter x:Name="ExpandedContent" Visibility="Collapsed" TextElement.Foreground="{TemplateBinding Foreground}"/>
+        </StackPanel>
+        <ControlTemplate.Triggers><Trigger Property="IsExpanded" Value="True"><Setter TargetName="ExpandedContent" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style TargetType="TextBox">
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
       <Setter Property="Background" Value="{DynamicResource Input}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
       <Setter Property="Padding" Value="10,7"/>
       <Setter Property="MinHeight" Value="36"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="CaretBrush" Value="{DynamicResource Text}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
+        <Border x:Name="TextSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="{TemplateBinding Padding}"><ScrollViewer x:Name="PART_ContentHost" Background="Transparent"/></Border>
+        <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="TextSurface" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="ComboBoxItem">
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="Padding" Value="10,8"/>
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem">
@@ -90,9 +155,10 @@
       </ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="ComboBox">
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
       <Setter Property="Foreground" Value="{DynamicResource Text}"/>
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
-        <Grid>
+        <Grid x:Name="PickerRoot">
           <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" ClickMode="Press">
             <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
               <Border x:Name="PickerSurface" Background="{DynamicResource Input}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="4">
@@ -101,23 +167,32 @@
               <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="PickerSurface" Property="Background" Value="{DynamicResource Hover}"/></Trigger></ControlTemplate.Triggers>
             </ControlTemplate></ToggleButton.Template>
           </ToggleButton>
-          <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="10,0,30,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+          <ContentPresenter x:Name="SelectedContent" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="10,0,30,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+          <Border x:Name="PickerFocus" BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="4" IsHitTestVisible="False" Visibility="Collapsed"/>
+          <TextBox x:Name="PART_EditableTextBox" Style="{x:Null}" FocusVisualStyle="{x:Null}" Visibility="Hidden" IsReadOnly="{TemplateBinding IsReadOnly}" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Text}" CaretBrush="{DynamicResource Text}" Margin="10,4,30,4" VerticalContentAlignment="Center"/>
+          <TextBlock x:Name="PickerDefaultHint" Text="Default" Foreground="{DynamicResource Muted}" Margin="10,0,30,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
           <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
             <Border Background="{DynamicResource PopupSurface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="6" Padding="4" Margin="0,4,0,0" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="240">
               <ScrollViewer CanContentScroll="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"><StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
             </Border>
           </Popup>
         </Grid>
+        <ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter TargetName="PickerRoot" Property="Opacity" Value="0.45"/></Trigger><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="PickerFocus" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsEditable" Value="True"><Setter TargetName="SelectedContent" Property="Visibility" Value="Collapsed"/><Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/></Trigger><MultiTrigger><MultiTrigger.Conditions><Condition Property="IsEditable" Value="True"/><Condition Property="Text" Value=""/></MultiTrigger.Conditions><Setter TargetName="PickerDefaultHint" Property="Visibility" Value="Visible"/></MultiTrigger></ControlTemplate.Triggers>
       </ControlTemplate></Setter.Value></Setter>
     </Style>
-<Style x:Key="SwitchStyle" TargetType="CheckBox"><Setter Property="Foreground" Value="{DynamicResource Text}"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><Grid Background="Transparent"><Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Border x:Name="SwitchTrack" Width="40" Height="22" CornerRadius="11" Background="#777777" VerticalAlignment="Center" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"><Ellipse x:Name="SwitchThumb" Width="16" Height="16" Fill="White" HorizontalAlignment="Left" Margin="3,0,0,0"><Ellipse.RenderTransform><TranslateTransform /></Ellipse.RenderTransform></Ellipse></Border><ContentPresenter Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" /></Grid><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="SwitchTrack" Property="Background" Value="{DynamicResource Accent}" /><Setter TargetName="SwitchThumb" Property="Fill" Value="{DynamicResource AccentText}" /><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="SwitchThumb" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="18" Duration="{StaticResource MotionFast}"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="SwitchThumb" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="0" Duration="{StaticResource MotionFast}"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SwitchTrack" Property="BorderThickness" Value="2" /><Setter TargetName="SwitchTrack" Property="BorderBrush" Value="#103622" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+<Style x:Key="SwitchStyle" TargetType="CheckBox"><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Foreground" Value="{DynamicResource Text}"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><Grid Background="Transparent"><Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Border x:Name="SwitchTrack" Width="40" Height="22" CornerRadius="11" Background="#777777" VerticalAlignment="Center" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"><Ellipse x:Name="SwitchThumb" Width="16" Height="16" Fill="White" HorizontalAlignment="Left" Margin="3,0,0,0"><Ellipse.RenderTransform><TranslateTransform /></Ellipse.RenderTransform></Ellipse></Border><ContentPresenter Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" /></Grid><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="SwitchTrack" Property="Background" Value="{DynamicResource Accent}" /><Setter TargetName="SwitchThumb" Property="Fill" Value="{DynamicResource AccentText}" /><Trigger.EnterActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="SwitchThumb" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="18" Duration="{StaticResource MotionFast}"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard></Trigger.EnterActions><Trigger.ExitActions><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="SwitchThumb" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)" To="0" Duration="{StaticResource MotionFast}"><DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction></DoubleAnimation></Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SwitchTrack" Property="BorderThickness" Value="2" /><Setter TargetName="SwitchTrack" Property="BorderBrush" Value="#103622" /></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+    <Style x:Key="NavigationButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource Text}"/><Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="NavigationSurface" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="NavigationSurface" Property="Background" Value="{DynamicResource Hover}"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="NavigationSurface" Property="Opacity" Value="0.6"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="NavigationSurface" Property="BorderBrush" Value="{DynamicResource Accent}"/><Setter TargetName="NavigationSurface" Property="BorderThickness" Value="1"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
   </Window.Resources>
+  <Grid x:Name="RootContent">
   <Grid x:Name="AppContent" Margin="28,24,28,16">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <Grid Margin="0,0,0,22">
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-      <StackPanel><TextBlock Text="Android Mirror" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="Your Android devices, together." Foreground="{DynamicResource Muted}" Margin="0,8,0,0"/></StackPanel>
-      <Button x:Name="SettingsButton" Grid.Column="1" Width="40" Height="40" Padding="8" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}" ToolTip="Settings" AutomationProperties.Name="Settings" VerticalAlignment="Top">
+      <TextBlock Text="Android Mirror" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center"/>
+      <Button x:Name="SettingsButton" Style="{StaticResource NavigationButtonStyle}" Grid.Column="1" Width="40" Height="40" Padding="8" ToolTip="Settings" AutomationProperties.Name="Settings" VerticalAlignment="Top">
         <TextBlock x:Name="SettingsGlyph" Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="18"/>
       </Button>
     </Grid>
@@ -139,12 +214,14 @@
         <Button x:Name="PrimaryButton" Content="Mirror selected" IsEnabled="False" Margin="0,12,0,0"/>
         <TextBlock x:Name="SelectionHint" Text="Choose one or several devices. Each opens in its own window." Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,10,0,0"/>
         <Expander x:Name="Help" Header="Connection help" Margin="0,16,0,8" FontSize="12" Foreground="{DynamicResource Muted}">
-          <StackPanel Margin="4,12,4,0">
-            <TextBlock Text="1. Enable Developer options → USB debugging on each device.&#10;2. Use a USB cable that supports data.&#10;3. Unlock the device and tap Allow on its debugging prompt." LineHeight="20"/>
-            <TextBlock Text="Closing a mirror pauses that device. Click Mirror to resume. Audio routing requires Android 11 or later." Margin="0,12,0,12"/>
+          <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,10,0,0"><StackPanel>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions><TextBlock Text="1" Foreground="{DynamicResource Accent}" FontSize="14" FontWeight="SemiBold"/><StackPanel Grid.Column="1"><TextBlock Text="Enable USB debugging" FontWeight="SemiBold" Foreground="{DynamicResource Text}" FontSize="13"/><TextBlock Text="Open Developer options on your Android device." Margin="0,4,0,0" Foreground="{DynamicResource Muted}"/></StackPanel></Grid>
+            <Grid Margin="0,16,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions><TextBlock Text="2" Foreground="{DynamicResource Accent}" FontSize="14" FontWeight="SemiBold"/><StackPanel Grid.Column="1"><TextBlock Text="Connect a data cable" FontWeight="SemiBold" Foreground="{DynamicResource Text}" FontSize="13"/><TextBlock Text="Use a USB cable that supports file transfers." Margin="0,4,0,0" Foreground="{DynamicResource Muted}"/></StackPanel></Grid>
+            <Grid Margin="0,16,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions><TextBlock Text="3" Foreground="{DynamicResource Accent}" FontSize="14" FontWeight="SemiBold"/><StackPanel Grid.Column="1"><TextBlock Text="Allow the connection" FontWeight="SemiBold" Foreground="{DynamicResource Text}" FontSize="13"/><TextBlock Text="Unlock your device and tap Allow on its debugging prompt." Margin="0,4,0,0" Foreground="{DynamicResource Muted}"/></StackPanel></Grid>
+            <Border BorderBrush="{DynamicResource Stroke}" BorderThickness="0,1,0,0" Margin="0,16,0,0" Padding="0,12,0,0"><TextBlock Text="Closing a mirror pauses it. Select Mirror to resume. Audio forwarding requires Android 11 or later." Foreground="{DynamicResource Muted}" LineHeight="18"/></Border>
             <TextBlock Text="Connection details" FontWeight="SemiBold" Margin="0,0,0,6"/>
             <TextBox x:Name="Diagnostics" IsReadOnly="True" TextWrapping="Wrap" Height="124" VerticalScrollBarVisibility="Auto" Background="{DynamicResource Input}" BorderBrush="{DynamicResource Stroke}" Padding="8" FontFamily="Consolas" FontSize="11" AutomationProperties.Name="Connection details"/>
-          </StackPanel>
+          </StackPanel></Border>
         </Expander>
       </StackPanel>
     </ScrollViewer>
@@ -171,8 +248,10 @@
               <StackPanel><TextBlock Text="Control from this PC"/><TextBlock Text="Mouse and keyboard control. Off is view only." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/></StackPanel>
             </CheckBox>
             <TextBlock x:Name="DeviceSettingsHint" Text="Connect a device to configure it." FontSize="12" Foreground="{DynamicResource Muted}" LineHeight="18"/>
+            <Button x:Name="ResetDeviceDefaults" Content="Reset this device to defaults" Margin="0,12,0,0" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/>
           </StackPanel>
         </Border>
+        <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,12,0,0"><Expander x:Name="ManageDevices" Header="Manage devices"><StackPanel x:Name="ManagedDeviceRows" Margin="0,14,0,0"/></Expander></Border>
         <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,12,0,12">
           <StackPanel>
             <TextBlock Text="App preferences" FontWeight="SemiBold" Margin="0,0,0,14"/>
@@ -184,8 +263,43 @@
             </CheckBox>
             <Label Content="_Theme" Target="{Binding ElementName=ThemePicker}" Padding="0,0,0,6"/>
             <ComboBox x:Name="ThemePicker" MinHeight="36" AutomationProperties.Name="Theme"><ComboBoxItem Content="Use Windows setting"/><ComboBoxItem Content="Light"/><ComboBoxItem Content="Dark"/></ComboBox>
+            <Button x:Name="AdvancedButton" Content="Advanced mirroring options" Margin="0,16,0,0" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/>
           </StackPanel>
         </Border>
+        <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12"><StackPanel>
+          <TextBlock Text="Mirroring engine updates" FontWeight="SemiBold"/>
+          <TextBlock Text="Get official engine releases while keeping your app settings. Automatic mode downloads verified packages and installs while the app is idle in the tray. Windows may request administrator approval." Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,8,0,12"/>
+          <ComboBox x:Name="EngineUpdatePolicy" MinHeight="36" AutomationProperties.Name="Engine update policy"><ComboBoxItem Content="Off"/><ComboBoxItem Content="Check only"/><ComboBoxItem Content="Automatic"/></ComboBox>
+          <TextBlock x:Name="EngineUpdateStatus" Text="Installed engine: 5.0.1" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,12,0,12"/>
+          <Button x:Name="CheckEngineUpdates" Content="Check for engine updates" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/>
+          <Button x:Name="InstallEngineUpdate" Content="Download and install when idle" Visibility="Collapsed" Margin="0,8,0,0"/>
+          <Expander Header="What’s new in the release" Margin="0,12,0,0"><TextBox x:Name="EngineReleaseNotes" IsReadOnly="True" TextWrapping="Wrap" Height="220" VerticalScrollBarVisibility="Auto" FontSize="12" Margin="0,12,0,0"/></Expander>
+        </StackPanel></Border>
+        <Button x:Name="ResetAppDefaults" Content="Restore app and device defaults" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}" Margin="0,0,0,12"/>
+      </StackPanel>
+    </ScrollViewer>
+    <ScrollViewer x:Name="AdvancedView" Grid.Row="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <ScrollViewer.RenderTransform><TranslateTransform/></ScrollViewer.RenderTransform>
+      <StackPanel>
+        <TextBlock Text="Advanced options" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,14"/>
+        <ComboBox x:Name="AdvancedDevicePicker" MinHeight="36" AutomationProperties.Name="Device or defaults to configure" Margin="0,0,0,12"/>
+        <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="0.43*"/><ColumnDefinition Width="0.57*"/></Grid.ColumnDefinitions>
+          <ComboBox x:Name="FeatureCategory" MinHeight="36" AutomationProperties.Name="Feature category" Margin="0,0,8,0"/>
+          <Grid Grid.Column="1"><TextBox x:Name="FeatureSearch" Padding="10,7,34,7" AutomationProperties.Name="Search engine options" ToolTip="Search by feature name, option, or description"/><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE721;" FontSize="14" Foreground="{DynamicResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" IsHitTestVisible="False"/><TextBlock Text="Search options" Foreground="{DynamicResource Muted}" Margin="11,0,34,0" VerticalAlignment="Center" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=FeatureSearch}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></Grid>
+        </Grid>
+        <TextBlock x:Name="FeatureCount" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,12"/>
+        <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Button x:Name="ApplyAdvancedButton" Content="Apply to this device"/><Button x:Name="ResetAdvancedButton" Grid.Column="1" Content="Reset" Margin="8,0,0,0" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/></Grid>
+        <TextBlock x:Name="AdvancedStatus" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,12"><TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed"/></Trigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+        <Expander x:Name="ShortcutReference" Header="Keyboard shortcuts, gestures, and drag and drop" Margin="0,0,0,12"><TextBox x:Name="FeatureReference" IsReadOnly="True" TextWrapping="Wrap" Height="320" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" Margin="0,12,0,0"/></Expander>
+        <StackPanel x:Name="FeatureRows"/>
+        <Expander Header="USB input only, without debugging" Margin="0,12,0,12"><StackPanel Margin="0,12,0,0">
+          <TextBlock Text="OTG sends keyboard, mouse, and optional gamepad input over USB without capturing video or audio. USB debugging is not required. Windows USB driver support varies by device." FontSize="12" Foreground="{DynamicResource Muted}"/>
+          <Label Content="USB serial (optional; needed when several devices are plugged in)" Padding="0,12,0,6"/><TextBox x:Name="OtgSerial" AutomationProperties.Name="USB serial for input-only mode"/>
+          <Button x:Name="RunOtgButton" Content="Start USB input only" Margin="0,12,0,0"/>
+        </StackPanel></Expander>
+        <Expander x:Name="DeviceQueryExpander" Header="Device capabilities" Margin="0,0,0,12"><TextBox x:Name="EngineQueryOutput" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="240" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" Margin="0,12,0,0"/></Expander>
+        <Expander Header="Engine environment" Margin="0,0,0,12"><StackPanel Margin="0,12,0,0"><TextBlock Text="Optional overrides for the engine process only. Leave blank for the bundled defaults. The device picker takes precedence over ANDROID_SERIAL." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,12"/><StackPanel x:Name="EngineEnvironmentRows"/></StackPanel></Expander>
+        <TextBlock Text="Linux V4L2 webcam output is unavailable on Windows. Camera mirroring, recording, virtual displays, and HID depend on the device and Android version. Each recording session adds a timestamp to your chosen file name." Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,4,0,12"/>
       </StackPanel>
     </ScrollViewer>
     <ScrollViewer x:Name="WirelessView" Grid.Row="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -221,9 +335,23 @@
           </StackPanel>
         </Border>
         <TextBlock x:Name="WirelessStatus" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,12,0,8" LineHeight="18" AutomationProperties.LiveSetting="Polite"/>
+        <Expander Header="Legacy Wi-Fi setup (USB required)" Margin="0,8,0,12"><StackPanel Margin="0,12,0,0"><TextBlock Text="For older devices: first authorize USB debugging and connect the device to Wi-Fi. This enables an unencrypted connection on port 5555. Enter a device IP in the Pairing code tab if automatic detection is unavailable." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,0,0,12"/><ComboBox x:Name="LegacyUsbDevice" MinHeight="36" AutomationProperties.Name="USB device for legacy Wi-Fi setup"/><Button x:Name="LegacyConnectButton" Content="Enable Wi-Fi from USB" Margin="0,12,0,0" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/></StackPanel></Expander>
         <Button x:Name="CancelPairButton" Content="Cancel" Visibility="Collapsed" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}" Margin="0,0,0,8"/>
       </StackPanel>
     </ScrollViewer>
     <TextBlock Grid.Row="2" Text="Close this window to keep running in the tray." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,12,0,0"/>
+  </Grid>
+  <Grid x:Name="DialogOverlay" Background="#80000000" Visibility="Collapsed" KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
+    <Border x:Name="DialogCard" MaxWidth="436" Margin="24" HorizontalAlignment="Stretch" VerticalAlignment="Center" Background="{DynamicResource PopupSurface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="8" RenderTransformOrigin="0.5,0.5" AutomationProperties.Name="Confirmation dialog">
+      <Border.RenderTransform><ScaleTransform/></Border.RenderTransform>
+      <Border.Effect><DropShadowEffect BlurRadius="32" ShadowDepth="8" Opacity="0.22"/></Border.Effect>
+      <StackPanel>
+        <StackPanel Margin="24,24,24,26"><TextBlock x:Name="DialogTitle" FontSize="20" FontWeight="SemiBold"/><TextBlock x:Name="DialogBody" FontSize="14" LineHeight="21" Margin="0,14,0,0"/></StackPanel>
+        <Border Background="{DynamicResource DialogFooter}" CornerRadius="0,0,8,8" BorderBrush="{DynamicResource Stroke}" BorderThickness="0,1,0,0" Padding="24">
+          <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><Button x:Name="DialogPrimary" Content="Continue" Margin="0,0,8,0"/><Button x:Name="DialogCancel" Grid.Column="1" Content="Cancel" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/></Grid>
+        </Border>
+      </StackPanel>
+    </Border>
+  </Grid>
   </Grid>
 </Window>

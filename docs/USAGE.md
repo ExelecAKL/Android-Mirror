@@ -8,7 +8,7 @@ With Connect automatically enabled, selected devices resume when they reconnect.
 
 ## Wireless setup
 
-Wireless debugging requires Android 11 or later and a shared Wi-Fi network. In Settings, change Connection from USB only to Wireless only or Adaptive. Windows displays a native confirmation explaining that wireless may add delay and USB offers the lowest latency. Choosing No preserves the previous mode.
+Wireless debugging requires Android 11 or later and a shared Wi-Fi network. In Settings, change Connection from USB only to Wireless only or Adaptive. A theme-aware confirmation explains that wireless may add delay and USB offers the lowest latency. Choose Enable wireless to continue or Keep USB to retain the previous mode. Escape cancels the dialog.
 
 Choose Set up wireless. For QR pairing, open Wireless debugging on the device and choose Pair device with QR code. Scan the code inside Android Mirror. Codes expire after three minutes; New QR code creates fresh credentials. Only the pairing service matching that QR code is accepted.
 
@@ -26,7 +26,25 @@ Settings → For this device selects the profile to edit. Play audio on Android 
 
 Audio forwarding requires Android 11 or later. On Android 11, unlock the screen before starting audio capture. Some apps and protected content block capture.
 
+## Advanced settings
+
+Open Advanced mirroring options in Settings. Choose a device or Defaults for new devices. Use the section picker and search field together. Every long option reported by the installed engine is represented; the bundled 5.0.1 engine has 109. Device selection and wireless connection options are mapped to the shell's existing controls. Capability-listing options run as hidden queries and display results in Device capabilities.
+
+Enable Override default to edit an option. Select Apply to save it; only the affected active session reopens. For UHID keyboard input, choose Keyboard, enable its override, and select uhid. The shortcut modifier and mouse bindings can be changed, with a full fixed-shortcut reference in Shortcuts. Individual shortcut actions cannot be assigned arbitrary new keys through the upstream engine.
+
+Reset clears the current Advanced draft. Apply saves that reset. The device reset in Settings applies immediately; Restore app and device defaults confirms before resetting everything. Pairing keys are retained. OTG input-only mode uses USB without capturing video or audio; it can work without USB debugging if device driver support allows it. V4L2 output is Linux-only and unavailable on this Windows build.
+
+Recordings use your selected base filename plus a timestamp and unique suffix for every new session. Relative recording paths go under Videos/Android Mirror. Ensure the chosen encoder, codec, output format, and Android capabilities are compatible.
+
+## Engine updates
+
+Select Off, Check only, or Automatic in Settings. Check for engine updates displays the installed version and official release notes. Automatic mode checks daily, downloads verified releases when mirrors are idle, and installs after two idle minutes with the app in the tray. Manual installation waits for mirrors to stop. Windows may request elevation for Program Files.
+
+App settings and recordings are retained. Changed, added, and removed engine files are applied with backup and rollback. Locally modified engine files block automatic binary replacement. See [update behavior](ENGINE-UPDATES.md).
+
 ## Tray, startup, and appearance
+
+Settings → Manage devices lists connected and saved devices. Remove stops that device's mirror and deletes its saved options and remembered app connection metadata. Other mirrors continue. A currently connected device stays hidden until it disconnects and reconnects, or until the app restarts, then returns with default options. To revoke wireless trust on Android itself, also forget this PC in the device's Wireless debugging settings.
 
 Closing the launcher keeps it in the Windows notification area. Its native tray menu provides Open, Mirror selected / Stop all, Settings, and Quit. Connection notifications use Windows notification delivery, so Windows notification and focus settings determine whether they appear.
 
@@ -36,4 +54,4 @@ Start with Windows is optional and starts the app quietly in the tray. Theme can
 
 The installer writes to Program Files and requires elevation. Normal app use does not require administrator rights. Use Windows Settings → Apps to uninstall. Preferences stay in `%LOCALAPPDATA%\Android Mirror\settings.xml` and are retained on uninstall. ADB maintains pairing keys through its normal per-user key store. The app never saves pairing codes or QR secrets.
 
-Portable use requires keeping the entire engine folder beside Android Mirror.exe. Root compatibility launchers open the UI; the original CLI engine is inside engine. Connection help contains bounded runtime diagnostics.
+Portable use requires keeping the entire engine folder beside Android Mirror.exe. Android Mirror.exe is the only public app launcher. The engine/Android Mirror Engine.exe entry redirects to the UI. The shell runs Android Mirror Runtime.bin directly, without a terminal; updates retain the visible entry and its app icon. Connection help contains bounded runtime diagnostics.

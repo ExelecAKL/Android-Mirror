@@ -2,6 +2,16 @@
 
 ## 1.1.0 — 2026-10-15
 
+- Searchable Advanced sections for all 109 bundled engine options, including UHID, shortcut modifiers, mouse bindings, recording, camera, virtual displays, gamepads, capability queries, and USB input-only mode.
+- Per-device and app defaults, plus unique recording filenames across reconnects.
+- Official engine release checks, release notes, verified background downloads, idle installation, owned-file updates, rollback, and protection for locally modified engines.
+- Rounded accent checkboxes, bare animated chevrons, solid keyboard focus indicators, unboxed navigation icons, and a section picker beside a search field with an icon and placeholder.
+- Theme-aware Windows 11 style confirmation dialogs with a dimmed backdrop, clear actions, and keyboard cancellation.
+- Manage devices in Settings removes a device's saved profile and stops its mirror while preserving other sessions.
+- Disabled Advanced overrides visibly dim their editors; empty editable pickers show Default. Background clicks clear focus highlights, and expanded descriptions use readable paragraphs and documentation links.
+- Redesigned installer and uninstaller with larger app artwork, Windows light/dark themes, clear progress, a separate footer, and rounded controls.
+- One public Android Mirror.exe launcher. The runtime is Android Mirror Engine.exe with the app icon; verified engine updates retain both automatically.
+
 - Android Mirror logo throughout the app, tray, Explorer launchers, and installer.
 - Multiple simultaneous device mirrors with independent audio and PC control settings.
 - One Settings panel for device choices, connection mode, themes, reconnecting, and Windows startup.

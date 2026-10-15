@@ -8,7 +8,11 @@ The interface follows Microsoft's [Windows typography](https://learn.microsoft.c
 
 Segoe UI, native title bars, neutral surfaces, 4px control corners, and 8px cards keep the shell familiar. The supplied SVG logo is preserved as vector paths and rendered into native icon sizes at build time. Its green accent is #32DE84 with dark action text.
 
-One Settings button opens connection mode, per-device audio/control choices, automatic reconnection, Windows startup, and theme. Wireless setup is a second screen inside the same window, with QR and pairing-code tabs. A native Windows MessageBox confirms enabling wireless and explains the latency tradeoff.
+One Settings button opens connection mode, per-device audio/control choices, device management, automatic reconnection, Windows startup, theme, Advanced, and updates. Wireless setup is a second screen inside the same window, with QR and pairing-code tabs. Navigation icons are unboxed and the header omits a subtitle. Advanced places a section picker to the left of a search field with an icon and placeholder.
+
+Confirmations implement the [Windows content-dialog pattern](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/dialogs-and-flyouts/dialogs) in WPF: rounded surfaces, a dimmed modal backdrop, theme-aware content and footer, explicit action labels, and Escape cancellation. Background input is disabled and Tab navigation stays inside the dialog. The latency notice recommends USB before enabling wireless. These are app-rendered dialogs rather than legacy MessageBoxes or a WinUI dependency.
+
+Custom control templates follow Windows [checkbox](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/checkbox) and [expander](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/expander) references: rounded 20px boxes with an accent fill and contrasting checkmark, bare line chevrons, and theme-aware text. Focus uses solid strokes. Default dotted focus templates are explicitly disabled, including generated Advanced editors. Keyboard and accessibility behavior is retained.
 
 Control feedback uses 120ms easing; view changes use 200ms fades and short movement. Motion follows Windows client-area animation preferences and high contrast mode. Windows desktop acrylic or an acrylic fallback is used where available and enabled. Dark tray menus use a uniformly dark gutter and separators.
 
@@ -30,6 +34,6 @@ USB only is the default and skips app-owned wireless discovery and pairing. Othe
 
 ## Distribution
 
-Runtime binaries are isolated in `engine/`; source, assets, vendor code, notices, and generated files have separate folders. Compatibility launchers open Android Mirror while the original CLI engine stays unchanged inside `engine/`. Preferences use LocalAppData so normal use under Program Files needs no elevation.
+Runtime binaries are isolated in `engine/`; source, assets, vendor code, notices, and generated files have separate folders. Android Mirror.exe is the only public launcher. Android Mirror Engine.exe is a branded UI entry. The upstream runtime is Android Mirror Runtime.bin and receives the app icon through PE resource branding; engine code remains unchanged. Verified updates reapply the name and icon and record original and branded hashes separately. Preferences use LocalAppData so normal use under Program Files needs no elevation.
 
 The installer maintains a file manifest and removes only its owned files and empty directories. Unrelated files and user preferences are preserved. Releases contain a portable ZIP, installer, checksums, and a matching runtime source bundle.

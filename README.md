@@ -32,8 +32,12 @@
 | **USB and Wi-Fi** | Choose USB only, Wireless only, or Adaptive. Pair with a QR code or a six-digit code inside the app. |
 | **Quiet in the tray** | Close the launcher to keep detection running. Restore it from the native Windows tray menu. |
 | **A familiar Windows feel** | System, light, and dark themes; acrylic where supported; subtle motion; your Android Mirror logo throughout. |
+| **Advanced when you need it** | Search all 109 engine options, including UHID, keyboard modifiers, mouse bindings, recording, camera, virtual displays, and gamepads. |
+| **Engine updates built in** | Check official releases, read changes, and install verified updates while idle. Local engine modifications pause binary updates. |
 
 All options live behind one **Settings** icon. Audio and control choices are saved separately for every device.
+
+**Settings → Manage devices** removes a saved device and stops its mirror without interrupting others. Reconnect it to add it again with defaults. Android wireless pairing trust is removed separately on the device.
 
 ## Getting started
 
@@ -44,6 +48,8 @@ All options live behind one **Settings** icon. Audio and control choices are sav
 3. Open **Android Mirror** from Start.
 
 The installer uses `C:\Program Files\Android Mirror`, adds a Start menu shortcut, and registers an uninstaller in Windows Settings. Desktop shortcuts are optional. This release is distributed directly through GitHub; it is not a Microsoft Store listing.
+
+<p align="center"><img src="assets/screenshots/installer-dark.png" alt="Android Mirror's modern dark installer with app icon, installation location and rounded controls" width="520" /></p>
 
 For a portable copy, extract **Android-Mirror-1.1.0-Windows-x64.zip** and open `Android Mirror.exe`. Keep its `engine` folder beside it. The release executables are currently unsigned.
 
@@ -59,7 +65,7 @@ USB is the default. With **Connect automatically** enabled, the first single dev
 
 1. Put your PC and Android 11+ device on the same Wi-Fi network.
 2. Open **Settings → Connection** and choose **Wireless only** or **Adaptive**.
-3. Read the native Windows latency notice, then select **Yes** to continue.
+3. Read the Windows 11 style latency notice, then choose **Enable wireless** to continue.
 4. Choose **Set up wireless**. On your device, open **Developer options → Wireless debugging**.
 5. Choose **Pair device with QR code** on the device and scan the app's code, or use the app's **Pairing code** tab.
 
@@ -98,6 +104,24 @@ The app follows Windows light/dark mode by default. Theme overrides, automatic r
 
 </details>
 
+## Advanced options and defaults
+
+Open **Settings → Advanced mirroring options**, choose a device or **Defaults for new devices**, then pick a section on the left or search on the right. Enable **Override default**, choose a value, and select **Apply**. For example, **Keyboard → Keyboard → uhid** enables USB HID keyboard emulation (`--keyboard=uhid`) for that device.
+
+Keyboard shortcut modifiers and mouse bindings are editable. The complete shortcut, gesture, and drag-and-drop reference is included; arbitrary remapping of individual engine shortcuts is not supported by the bundled engine. Device capability buttons list available apps, cameras, displays, and encoders. The Windows build does not support Linux V4L2 output.
+
+**Reset** clears the Advanced draft; select **Apply** to save it. Settings also offers **Reset this device to defaults** and **Restore app and device defaults**. Recording sessions get unique filenames so reconnecting or mirroring several devices does not overwrite previous recordings.
+
+<p align="center"><img src="assets/screenshots/advanced-dark.png" alt="Advanced options with a section picker, search field, and per-device controls" width="340" /> <img src="assets/screenshots/dialog-dark.png" alt="Themed wireless confirmation dialog" width="340" /></p>
+
+## Updates without losing your setup
+
+Settings offers **Off**, **Check only**, or **Automatic** engine updates. Automatic mode checks daily, downloads a package when mirroring is idle, verifies its SHA-256 against official GitHub metadata, and installs once the app has been idle in the tray for two minutes. Program Files installations may require Windows administrator approval. Active mirrors are not interrupted for an automatic installation.
+
+The updater replaces changed engine files, adds new files, and removes obsolete owned files. It preserves the UI, preferences, recordings, unrelated files, and unchanged engine files. Failed installations attempt rollback from a backup. Packages are full downloads; file application is incremental.
+
+Engine code is currently upstream code; the Windows executable name and icon resources are branded for Android Mirror. Updates reapply the name and icon automatically. If engine files are locally changed, binary updates pause to preserve those changes. A future customized engine must be merged and rebuilt by maintainers, then distributed as a tested compatible release. End users do not merge source code. See [engine updates](docs/ENGINE-UPDATES.md).
+
 ## Build from source
 
 Requires Windows x64 and .NET Framework 4.8. The build uses the compiler included with Windows; Node.js and Visual Studio are not required.
@@ -114,6 +138,7 @@ The first command builds the app and runs the connection tests. The second build
 ```text
 Android Mirror.exe   Desktop app
 engine/              Bundled mirroring and device tools
+tools/               Generated engine update helper
 assets/              Vector logo and README screenshots
 src/                 Native app, installer, build scripts, and tests
 vendor/              Pinned QR code dependency
@@ -125,7 +150,7 @@ releases/            Versioned release packages (local only)
 archive/             Preserved files from the old layout (local only)
 ```
 
-The compatibility launchers `scrcpy.exe` and `scrcpy-connect.exe` open Android Mirror. The original command-line engine remains in `engine/`. [Validation notes](docs/VALIDATION.md) describe what has been checked and what still requires physical devices.
+`Android Mirror.exe` is the single public app launcher. The app-icon entry `engine/Android Mirror Engine.exe` also opens the UI when double-clicked. The shell runs `engine/Android Mirror Runtime.bin` internally; updates preserve the visible entry and its icon. [Validation notes](docs/VALIDATION.md) describe what has been checked and what still requires physical devices.
 
 ## Credits and licences
 
@@ -133,8 +158,6 @@ Android Mirror is an independent Windows project. It is not an official Google p
 
 - **Android and Google:** Android is a trademark of Google LLC. Android platform and ADB work are credited to Google and the Android Open Source Project. See Google's [Android brand guidelines](https://developer.android.com/distribute/marketing-tools/brand-guidelines).
 - **Logo:** The Android Mirror composition was supplied by this project's creator. The Android robot is reproduced or modified from work created and shared by Google and used according to terms described in the [Creative Commons 3.0 Attribution License](https://creativecommons.org/licenses/by/3.0/).
-- **Mirroring engine:** [scrcpy](https://github.com/Genymobile/scrcpy), by Genymobile, Romain Vimont, and contributors, is bundled unchanged under Apache 2.0. Its [original licence](licenses/scrcpy-LICENSE.txt) is retained.
-- **QR codes:** [QRCoder](https://github.com/Shane32/QRCoder), by Raffael Herrmann, Shane Krueger, and contributors, under the [MIT licence](licenses/QRCoder-LICENSE.txt).
-- **Runtime libraries:** FFmpeg, SDL, libusb, and their dependencies retain their respective authorship and licences. See [third-party notices](licenses/THIRD-PARTY.md).
+
 
 Project code is distributed under [Apache 2.0](LICENSE.txt). Third-party code, trademarks, and artwork remain subject to their own terms. [NOTICE.txt](NOTICE.txt) records attribution; it does not transfer ownership to Google or the Android project.

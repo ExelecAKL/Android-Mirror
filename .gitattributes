@@ -9,4 +9,6 @@ licenses/scrcpy-LICENSE.txt -text
 *.exe binary
 *.dll binary
 *.png binary
+*.ico binary
+*.bin binary
 /engine/scrcpy-server binary

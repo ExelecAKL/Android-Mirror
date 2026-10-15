@@ -127,6 +127,8 @@ namespace AndroidMirror
             info.EnvironmentVariables["ADB"] = Path.Combine(directory, "adb.exe");
             info.EnvironmentVariables["ADB_SERVER_SOCKET"] = "tcp:localhost:5037";
             info.EnvironmentVariables["SCRCPY_SERVER_PATH"] = Path.Combine(directory, "scrcpy-server");
+            string icons = Path.GetFullPath(Path.Combine(directory, "..", "assets", "icons"));
+            if (Directory.Exists(icons)) info.EnvironmentVariables["SCRCPY_ICON_DIR"] = icons;
             return info;
         }
         public static async Task<byte[]> ReadExact(Stream stream, int length, CancellationToken token)
@@ -169,12 +171,22 @@ namespace AndroidMirror
     {
         readonly Process process;
         readonly Action<string> log;
+        readonly bool headless;
+        readonly Stopwatch lifetime = new Stopwatch();
         int released, disposing;
         public event Action<int> Exited;
         public MirrorProcess(string directory, string serial, Action<string> log, MirrorOptions options = null, string name = null)
         {
             this.log = log;
-            process = new Process { StartInfo = AdbTracker.ProcessInfo("scrcpy.exe", Arguments(serial, options ?? new MirrorOptions(), name), directory) };
+            options = (options ?? new MirrorOptions()).Copy();
+            foreach (var recording in options.Advanced.Where(s => s.Enabled && s.Name == "--record" && s.Value.Length > 0))
+            {
+                recording.Value = EngineArguments.RecordingTarget(recording.Value);
+                Directory.CreateDirectory(Path.GetDirectoryName(recording.Value));
+            }
+            headless = options.Has("--otg") || options.Has("--no-window") || options.Has("--no-video") || options.Has("--no-video-playback") || options.Has("--no-playback");
+            process = new Process { StartInfo = AdbTracker.ProcessInfo(EngineLayout.RuntimeExecutable, Arguments(serial, options ?? new MirrorOptions(), name), directory) };
+            foreach (var setting in options.Environment) if (EngineCatalog.EnvironmentNames.Contains(setting.Name) && !String.IsNullOrWhiteSpace(setting.Value)) process.StartInfo.EnvironmentVariables[setting.Name] = setting.Value;
             process.OutputDataReceived += OnOutput;
             process.ErrorDataReceived += OnOutput;
             process.Exited += delegate { Task.Run(() => {
@@ -184,10 +196,11 @@ namespace AndroidMirror
             }); };
         }
         void OnOutput(object sender, DataReceivedEventArgs e) { if (e.Data != null) log(e.Data); }
-        public bool Ready { get { try { process.Refresh(); return !process.HasExited && process.MainWindowHandle != IntPtr.Zero; } catch { return false; } } }
+        public bool Ready { get { try { process.Refresh(); return !process.HasExited && (process.MainWindowHandle != IntPtr.Zero || (headless && lifetime.ElapsedMilliseconds > 1200)); } catch { return false; } } }
         public void Start()
         {
             process.Start();
+            lifetime.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
             process.EnableRaisingEvents = true;
@@ -199,8 +212,9 @@ namespace AndroidMirror
                 {
                     if (process.HasExited) return;
                     process.CloseMainWindow();
-                    Task exit = Task.Run(() => process.WaitForExit());
-                    if (await Task.WhenAny(exit, Task.Delay(1800)).ConfigureAwait(false) != exit && !process.HasExited) process.Kill();
+                    var wait = Stopwatch.StartNew();
+                    while (!process.HasExited && wait.ElapsedMilliseconds < 1800) await Task.Delay(40).ConfigureAwait(false);
+                    if (!process.HasExited) process.Kill();
                 }
                 catch (InvalidOperationException) { }
                 catch (System.ComponentModel.Win32Exception) { }
@@ -226,9 +240,7 @@ namespace AndroidMirror
         void ReleaseProcess() { if (Interlocked.Exchange(ref released, 1) == 0) process.Dispose(); }
         public static string Arguments(string serial, MirrorOptions options, string name)
         {
-            return "--serial=" + Quote(serial) + " --window-title=" + Quote("Android Mirror" + (String.IsNullOrEmpty(name) ? "" : " - " + name)) + " --pause-on-exit=false"
-                + (options.AudioEnabled ? " --audio-source=output" : " --no-audio")
-                + (options.ControlEnabled ? "" : " --no-control --no-clipboard-autosync");
+            return EngineArguments.Build(serial, options, name);
         }
         // Windows CommandLineToArgvW escaping; no shell is involved.
         public static string Quote(string value)
@@ -257,6 +269,7 @@ namespace AndroidMirror
         public List<Device> Devices = new List<Device>();
         public string Target = "", Error = "";
         public bool AutoReconnect = true, Wanted = true;
+        public Func<Device, bool> AdditionalTransport;
         public IMirrorSession Active { get; private set; }
         public bool Stopping { get; private set; }
         public int Failures { get; private set; }
@@ -267,7 +280,7 @@ namespace AndroidMirror
         public ConnectionController(Func<string, IMirrorSession> create, Action<Action> dispatch, Func<DateTime> now = null)
         { this.create = create; this.dispatch = dispatch; this.now = now ?? (() => DateTime.UtcNow); }
         public Device Selected { get { return Devices.FirstOrDefault(d => d.Serial == Target); } }
-        public bool CanConnect { get { return Selected != null && Selected.State == "device"; } }
+        public bool CanConnect { get { return Selected != null && (Selected.State == "device" || (AdditionalTransport != null && AdditionalTransport(Selected))); } }
         public void UpdateDevices(List<Device> devices)
         {
             bool wasReady = CanConnect;

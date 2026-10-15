@@ -22,12 +22,12 @@ namespace AndroidMirror
     }
     public sealed class AdbCommands : IAdbCommands
     {
-        readonly string directory;
-        public AdbCommands(string directory) { this.directory = directory; }
+        readonly string directory, executable;
+        public AdbCommands(string directory, string executable = "adb.exe") { this.directory = directory; this.executable = executable; }
         public async Task<AdbReply> Run(string arguments, string input, int timeout, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
-            var start = AdbTracker.ProcessInfo("adb.exe", arguments, directory);
+            var start = AdbTracker.ProcessInfo(executable, arguments, directory);
             start.RedirectStandardInput = input != null;
             using (var process = new Process { StartInfo = start })
             {
@@ -144,6 +144,21 @@ namespace AndroidMirror
             bool connected = reply.Code == 0 && (reply.Text.StartsWith("connected to ", StringComparison.OrdinalIgnoreCase) || reply.Text.StartsWith("already connected to ", StringComparison.OrdinalIgnoreCase));
             if (!connected) throw new IOException("Couldn’t connect. Use the connection port from the main Wireless debugging screen; it differs from the pairing port.");
             return new WirelessOutcome { Connected = true, Endpoint = endpoint, ServiceName = serviceName, Message = "Connected over Wi-Fi. Your device will appear in the device list." };
+        }
+        public async Task<WirelessOutcome> Legacy(string serial, string host, CancellationToken token)
+        {
+            if (String.IsNullOrWhiteSpace(serial)) throw new ArgumentException("Choose an authorized USB device first.");
+            if (String.IsNullOrWhiteSpace(host)) {
+                var address = await adb.Run("-s " + MirrorProcess.Quote(serial) + " shell ip -f inet addr show wlan0", null, 6000, token).ConfigureAwait(false);
+                var match = Regex.Match(address.Text, @"\binet\s+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/");
+                if (!match.Success) throw new IOException("The device Wi-Fi address could not be found. Enter its IP address manually above.");
+                host = match.Groups[1].Value;
+            }
+            string endpoint = Endpoint(host, "5555");
+            var reply = await adb.Run("-s " + MirrorProcess.Quote(serial) + " tcpip 5555", null, 6000, token).ConfigureAwait(false);
+            if (reply.Code != 0) throw new IOException("The device did not enable legacy Wi-Fi. Confirm USB debugging and retry.");
+            await Task.Delay(1000, token).ConfigureAwait(false);
+            return await Connect(endpoint, "", token).ConfigureAwait(false);
         }
         public async Task<List<Device>> Identify(List<Device> devices, IDictionary<string, string> cache, CancellationToken token)
         {

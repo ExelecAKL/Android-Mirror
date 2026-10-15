@@ -89,11 +89,12 @@ namespace AndroidMirror
                 window.ShowActivated = false; window.ShowInTaskbar = false;
             }
             controller.Changed += Render;
-            Control<Button>("SettingsButton").Click += delegate { if (wirelessOpen) OpenWireless(false); else OpenSettings(!settingsOpen); };
-            window.PreviewKeyDown += (sender, e) => { if (e.Key == Key.Escape && (settingsOpen || wirelessOpen)) { if (wirelessOpen) OpenWireless(false); else OpenSettings(false); e.Handled = true; } };
+            Control<Button>("SettingsButton").Click += delegate { if (advancedOpen) OpenAdvanced(false); else if (wirelessOpen) OpenWireless(false); else OpenSettings(!settingsOpen); };
+            window.PreviewKeyDown += (sender, e) => { if (dialogResult != null) { if (e.Key == Key.Escape) { CompleteDialog(false); e.Handled = true; } return; } if (e.Key == Key.Escape && (settingsOpen || wirelessOpen || advancedOpen)) { if (advancedOpen) OpenAdvanced(false); else if (wirelessOpen) OpenWireless(false); else OpenSettings(false); e.Handled = true; } };
             Control<Button>("PrimaryButton").Click += delegate {
+                if (updatingEngine) return;
                 if (!String.IsNullOrEmpty(trackerError) && controller.ActiveCount == 0) StartTracker();
-                else if (controller.ActiveCount > 0 || controller.Waiting) controller.StopAll();
+                else if (controller.ActiveCount > 0 || controller.Waiting || otgSession != null) { controller.StopAll(); if (otgSession != null) otgSession.Stop(); }
                 else controller.ConnectSelected();
                 SaveSettings();
             };
@@ -119,34 +120,37 @@ namespace AndroidMirror
             window.SourceInitialized += delegate { RefreshAppearance(); };
             window.Closing += (sender, e) => {
                 if (preview || exiting) return;
+                if (dialogResult != null) { e.Cancel = true; CompleteDialog(false); return; }
                 e.Cancel = true; SaveSettings(); window.Hide();
                 if (!backgroundTipShown) { backgroundTipShown = true; if (tray != null && !selfCheck) tray.NotifyBackground(); }
             };
             window.Closed += delegate {
-                SaveSettings(); closed = true; timer.Stop();
+                CompleteDialog(false); SaveSettings(); closed = true; timer.Stop();
                 SystemEvents.UserPreferenceChanged -= OnPreferenceChanged;
                 if (activationWait != null) activationWait.Unregister(null);
                 if (quitWait != null) quitWait.Unregister(null);
                 wirelessLifetime.Cancel(); CancelPairing();
+                updatesLifetime.Cancel();
+                if (otgSession != null) otgSession.Dispose();
                 if (tracker != null) tracker.Dispose();
                 controller.Dispose(); if (tray != null) tray.Dispose();
             };
             timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            timer.Tick += delegate { controller.Tick(); MaybeReconnectWireless(); };
+            timer.Tick += delegate { if (!updatingEngine) { controller.Tick(); MaybeReconnectWireless(); TickEngineUpdates(); } };
             if (!preview)
             {
                 tray = new TrayIntegration(Assembly.GetExecutingAssembly().Location, "ScrcpyConnect-" + StableId(directory));
                 tray.OpenRequested += () => OnUI(RestoreWindow);
                 tray.SettingsRequested += () => OnUI(() => { RestoreWindow(); OpenSettings(true); });
                 tray.QuitRequested += () => OnUI(Quit);
-                tray.MirrorRequested += () => OnUI(() => { if (controller.ActiveCount > 0 || controller.Waiting) controller.StopAll(); else controller.ConnectSelected(); });
+                tray.MirrorRequested += () => OnUI(() => { if (updatingEngine) return; if (controller.ActiveCount > 0 || controller.Waiting || otgSession != null) { controller.StopAll(); if (otgSession != null) otgSession.Stop(); } else controller.ConnectSelected(); });
                 tray.Error += AddLog;
                 SystemEvents.UserPreferenceChanged += OnPreferenceChanged;
                 if (activation != null) activationWait = ThreadPool.RegisterWaitForSingleObject(activation, (state, timeout) => OnUI(RestoreWindow), null, Timeout.Infinite, false);
                 if (quitSignal != null) quitWait = ThreadPool.RegisterWaitForSingleObject(quitSignal, (state, timeout) => OnUI(Quit), null, Timeout.Infinite, false);
                 Application.Current.SessionEnding += delegate { exiting = true; };
             }
-            InitializeWireless(); RefreshAppearance();
+            InitializeDialogs(); InitializeInputFocus(); InitializeWireless(); InitializeEngineUi(); InitializeUpdates(); InitializeMotion(); RefreshAppearance();
         }
         void RestoreWindow()
         {
@@ -161,7 +165,8 @@ namespace AndroidMirror
         {
             if (preview || selfCheck) return;
             preferences.Theme = themeMode;
-            string signature = preferences.AutoReconnect + "|" + preferences.SelectionInitialized + "|" + themeMode + "|" + preferences.ConnectionMode + "|" + String.Join("|", preferences.WirelessPeers.Select(p => p.Endpoint + ":" + p.ServiceName + ":" + p.PhysicalId)) + "|" + String.Join("|", preferences.Profiles.Select(p => p.Serial + ":" + p.Name + ":" + p.Selected + ":" + p.Options.AudioEnabled + ":" + p.Options.ControlEnabled));
+            string signature;
+            using (var writer = new StringWriter(System.Globalization.CultureInfo.InvariantCulture)) { new System.Xml.Serialization.XmlSerializer(typeof(AppPreferences)).Serialize(writer, preferences); signature = writer.ToString(); }
             if (signature == lastSettings) return;
             try { preferences.Save(settingsFile); lastSettings = signature; }
             catch (Exception error) { AddLog("Couldn’t save settings: " + error.Message); }
@@ -176,7 +181,7 @@ namespace AndroidMirror
                 {
                     if (preferences.ConnectionMode != "usb") devices = await wireless.Identify(devices, wirelessIdentities, wirelessLifetime.Token).ConfigureAwait(false);
                     OnUI(() => {
-                        if (tracker != next || revision != snapshotRevision) return;
+                        if (updatingEngine || tracker != next || revision != snapshotRevision) return;
                         var previous = controller.Devices.Where(d => d.State == "device").Select(d => d.Key).ToArray();
                         foreach (var device in devices.Where(d => d.IsWireless && d.PhysicalId.Length > 0))
                             foreach (var peer in preferences.WirelessPeers.Where(p => p.Endpoint == device.Serial || (p.ServiceName.Length > 0 && device.Serial.StartsWith(p.ServiceName + ".", StringComparison.Ordinal)))) peer.PhysicalId = device.PhysicalId;
@@ -259,6 +264,7 @@ namespace AndroidMirror
             Control<CheckBox>("AudioToggle").IsEnabled = selected != null; Control<CheckBox>("ControlToggle").IsEnabled = selected != null;
             Control<CheckBox>("AudioToggle").IsChecked = selected != null && selected.Options.AudioEnabled;
             Control<CheckBox>("ControlToggle").IsChecked = selected != null && selected.Options.ControlEnabled;
+            Control<Button>("ResetDeviceDefaults").IsEnabled = selected != null;
             Control<CheckBox>("AutoReconnect").IsChecked = preferences.AutoReconnect;
             Control<CheckBox>("StartupToggle").IsChecked = tray != null && tray.StartupEnabled;
             Control<CheckBox>("StartupToggle").IsEnabled = !preview && !selfCheck;
@@ -266,10 +272,12 @@ namespace AndroidMirror
             Control<ComboBox>("ConnectionModePicker").SelectedIndex = preferences.ConnectionMode == "usb" ? 0 : preferences.ConnectionMode == "wireless" ? 1 : 2;
             Control<Button>("WirelessSetupButton").IsEnabled = preferences.ConnectionMode != "usb";
             Control<TextBlock>("DeviceSettingsHint").Text = selected == null ? "Connect a device to configure it." : "Saved for this device. Changes apply immediately and may briefly reopen its mirror. Audio routing needs Android 11 or later.";
+            RenderManagedDevices();
             updating = false;
         }
         void OpenSettings(bool open)
         {
+            if (advancedOpen) { advancedOpen = false; Control<ScrollViewer>("AdvancedView").Visibility = Visibility.Collapsed; }
             if (wirelessOpen) { wirelessOpen = false; CancelPairing(); Control<ScrollViewer>("WirelessView").Visibility = Visibility.Collapsed; }
             settingsOpen = open; RenderSettings();
             Control<ScrollViewer>("HomeView").Visibility = open ? Visibility.Collapsed : Visibility.Visible;
@@ -289,12 +297,13 @@ namespace AndroidMirror
         {
             if (closed) return;
             RenderRows(); RenderSettings();
-            int active = controller.ActiveCount, selected = controller.VisibleSlots.Count(s => s.Profile.Selected);
+            int active = controller.ActiveCount + (otgSession == null ? 0 : 1), selected = controller.VisibleSlots.Count(s => s.Profile.Selected);
             string title, description, tag, color = "#777777";
-            bool ready = controller.Slots.Any(s => s.Controller.Active != null && s.Controller.Active.Ready);
+            bool ready = controller.Slots.Any(s => s.Controller.Active != null && s.Controller.Active.Ready) || (otgSession != null && otgSession.Ready);
             if (active > 0)
             {
-                title = ready ? (active == 1 ? "Your device is mirrored" : active + " devices mirrored") : "Opening your devices";
+                bool inputOnly = otgSession != null || controller.Slots.Any(s => s.Controller.Active != null && (s.Profile.Options.Has("--otg") || s.Profile.Options.Has("--no-video") || s.Profile.Options.Has("--no-window")));
+                title = ready ? inputOnly ? active + " device session" + (active == 1 ? " running" : "s running") : (active == 1 ? "Your device is mirrored" : active + " devices mirrored") : "Opening your devices";
                 description = String.Join(", ", controller.Slots.Where(s => s.Controller.Active != null).Select(s => s.Profile.Name));
                 tag = ready ? "Mirroring" : "Connecting"; color = Appearance.IsDark ? "#32DE84" : "#13783F";
             }
@@ -339,7 +348,7 @@ namespace AndroidMirror
             Control<Grid>("AppContent").RenderTransform = new TranslateTransform(); AnimateIn(Control<Grid>("AppContent"), 280, 8);
             if (!preview)
             {
-                var missing = new[] { "adb.exe", "scrcpy.exe", "scrcpy-server" }.Where(name => !File.Exists(System.IO.Path.Combine(engineDirectory, name))).ToArray();
+                var missing = new[] { "adb.exe", EngineLayout.RuntimeExecutable, "scrcpy-server" }.Where(name => !File.Exists(System.IO.Path.Combine(engineDirectory, name))).ToArray();
                 if (missing.Length > 0) { trackerError = "Missing: " + String.Join(", ", missing); AddLog(trackerError + ". Keep the engine folder beside Android Mirror."); Render(); }
                 else { StartTracker(); timer.Start(); }
             }
@@ -347,7 +356,7 @@ namespace AndroidMirror
             {
                 preferences.AutoReconnect = false;
                 preferences.ConnectionMode = "adaptive";
-                if (new[] { "multiple", "settings", "mirroring", "motion", "wireless", "manual" }.Contains(renderState))
+                if (new[] { "multiple", "settings", "mirroring", "motion", "wireless", "manual", "advanced", "advanced-input", "advanced-disabled", "advanced-details", "dialog", "help", "updates", "manage" }.Contains(renderState))
                 {
                     controller.UpdateDevices(Device.Parse("phone-a\tdevice model:Pixel_9\ntablet-b\tdevice model:Galaxy_Tab\n"));
                     controller.SetOptions("phone-a", true, false); controller.SetOptions("tablet-b", false, true);
@@ -355,6 +364,14 @@ namespace AndroidMirror
                     if (renderState == "mirroring") controller.ConnectSelected();
                     if (renderState == "settings" || renderState == "motion") { settingsSerial = "tablet-b"; OpenSettings(true); }
                     if (renderState == "wireless" || renderState == "manual") { OpenSettings(true); OpenWireless(true); if (renderState == "manual") ShowPairingTab(false); }
+                    if (renderState == "advanced") { OpenSettings(true); OpenAdvanced(true); Control<ComboBox>("FeatureCategory").SelectedItem = "Video"; }
+                    if (renderState == "advanced-input") { OpenSettings(true); OpenAdvanced(true); Control<ComboBox>("FeatureCategory").SelectedItem = "Keyboard"; Setting("--keyboard").Enabled = true; Setting("--keyboard").Value = "uhid"; RenderFeatureList(); }
+                    if (renderState == "advanced-disabled") { OpenSettings(true); OpenAdvanced(true); Control<ComboBox>("FeatureCategory").SelectedItem = "Keyboard"; }
+                    if (renderState == "advanced-details") { OpenSettings(true); OpenAdvanced(true); Control<TextBox>("FeatureSearch").Text = "--audio-codec-options"; var card = (Border)Control<StackPanel>("FeatureRows").Children[0]; ((StackPanel)card.Child).Children.OfType<Expander>().First().IsExpanded = true; }
+                    if (renderState == "dialog") { OpenSettings(true); ConfirmDialog("Enable wireless mirroring?", "Wi-Fi may add delay or stutter, depending on your connection.\n\nUSB is recommended for the lowest latency.", "Enable wireless", "Keep USB"); }
+                    if (renderState == "help") Control<Expander>("Help").IsExpanded = true;
+                    if (renderState == "updates") { OpenSettings(true); Control<ScrollViewer>("SettingsView").ScrollToEnd(); }
+                    if (renderState == "manage") { OpenSettings(true); Control<Expander>("ManageDevices").IsExpanded = true; }
                 }
                 else if (renderState == "permission") controller.UpdateDevices(Device.Parse("phone-a\tunauthorized model:Android_phone\n"));
                 else if (renderState == "ready") controller.UpdateDevices(Device.Parse("phone-a\tdevice model:Android_phone\n"));
@@ -363,6 +380,8 @@ namespace AndroidMirror
                 Render();
                 window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => {
                     window.UpdateLayout();
+                    if (renderState == "help") { Control<ScrollViewer>("HomeView").ScrollToEnd(); window.UpdateLayout(); }
+                    if (renderState == "manage") { Control<Expander>("ManageDevices").BringIntoView(); window.UpdateLayout(); }
                     if (renderState == "tray") using (var previewTray = new TrayIntegration(Assembly.GetExecutingAssembly().Location, "Preview", false)) { previewTray.Update("Listening", false, false, true, false, Appearance.IsDark, themeMode); previewTray.SaveMenuPreview(renderPath + ".tray.png"); }
                     if (renderState == "glass") { Appearance.Apply(window, themeMode, false); File.WriteAllText(renderPath + ".glass.txt", "Material: " + Appearance.Material); }
                     if (motionPreview)
@@ -389,6 +408,7 @@ namespace AndroidMirror
             bool selfCheck = args.Length >= 2 && args[0] == "--self-check";
             bool ownsMutex;
             string userIdentity = StableId(Environment.UserDomainName + "\\" + Environment.UserName);
+            if (selfCheck) userIdentity += "-Verification-" + StableId(AppDomain.CurrentDomain.BaseDirectory);
             using (var mutex = new Mutex(true, "Local\\AndroidMirrorUser-" + userIdentity, out ownsMutex))
             using (var activation = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\AndroidMirrorShow-" + userIdentity))
             using (var quitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\ScrcpyConnectQuit-" + StableId(AppDomain.CurrentDomain.BaseDirectory)))
@@ -452,12 +472,48 @@ namespace AndroidMirror
                         report.Add("PASS light and dark theme switching");
                         OpenSettings(true);
                         if (Control<ScrollViewer>("SettingsView").Visibility != Visibility.Visible || Control<ScrollViewer>("HomeView").Visibility != Visibility.Collapsed) throw new Exception("Settings navigation failed.");
+                        Control<Expander>("ManageDevices").IsExpanded = true; window.UpdateLayout();
+                        if (Control<StackPanel>("ManagedDeviceRows").Children.Count != Math.Max(1, controller.Slots.Count())) throw new Exception("Device management list failed.");
+                        report.Add("PASS Settings device management lists connected and saved profiles");
                         OpenWireless(true); window.UpdateLayout();
                         if (!(Control<Image>("PairingQrImage").Source is DrawingImage)) throw new Exception("QR code rendering failed.");
                         ShowPairingTab(false);
                         if (Control<StackPanel>("ManualPairPanel").Visibility != Visibility.Visible) throw new Exception("Manual pairing navigation failed.");
                         OpenWireless(false); OpenSettings(false);
                         report.Add("PASS settings, vector QR rendering, and manual wireless pairing screens");
+                        OpenAdvanced(true);
+                        Control<ComboBox>("FeatureCategory").SelectedItem = "All features";
+                        Control<TextBox>("FeatureSearch").Text = "shortcut-mod"; window.UpdateLayout();
+                        if (Control<StackPanel>("FeatureRows").Children.Count != 1 || engineCatalog.Features.Count != 109) throw new Exception("Advanced option search or catalogue failed.");
+                        var featureCard = (Border)Control<StackPanel>("FeatureRows").Children[0];
+                        var featureContent = (StackPanel)featureCard.Child;
+                        var featureCheck = featureContent.Children.OfType<CheckBox>().Single(); featureCheck.IsChecked = true; window.UpdateLayout();
+                        var checkSurface = (Border)featureCheck.Template.FindName("CheckSurface", featureCheck);
+                        var checkMark = (System.Windows.Shapes.Path)featureCheck.Template.FindName("CheckMark", featureCheck);
+                        if (checkSurface.CornerRadius.TopLeft != 4 || checkMark.Visibility != Visibility.Visible || featureCheck.FocusVisualStyle != null) throw new Exception("Rounded checkbox or solid focus styling failed.");
+                        var details = featureContent.Children.OfType<Expander>().Single(); details.IsExpanded = true; window.UpdateLayout();
+                        var header = (System.Windows.Controls.Primitives.ToggleButton)details.Template.FindName("ExpanderHeader", details);
+                        if (header.Template.FindName("Chevron", header) == null || header.FocusVisualStyle != null) throw new Exception("Chevron template failed.");
+                        var editable = featureContent.Children.OfType<ComboBox>().Single(); editable.Text = "lalt";
+                        if (!editable.IsEditable || editable.FocusVisualStyle != null) throw new Exception("Advanced editable picker failed.");
+                        featureCheck.IsChecked = false; window.UpdateLayout();
+                        var pickerRoot = (Grid)editable.Template.FindName("PickerRoot", editable);
+                        if (editable.IsEnabled || pickerRoot.Opacity >= 0.6) throw new Exception("Inactive override picker did not look disabled.");
+                        featureCheck.Focus(); ClearFocusForBackground(Control<TextBlock>("FeatureCount"));
+                        if (featureCheck.IsKeyboardFocused) throw new Exception("Clicking outside a control did not clear focus.");
+                        report.Add("PASS inactive override pickers are dimmed and background clicks clear control focus");
+                        Control<Button>("ResetAdvancedButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        if (advancedDraft.Advanced.Any(s => s.Enabled)) throw new Exception("Advanced reset left overrides enabled.");
+                        report.Add("PASS 109 searchable Advanced options, shortcut modifier editor, and draft reset");
+                        report.Add("PASS rounded accent checkboxes, bare chevrons, themed headers, and no dotted control focus templates");
+                        OpenAdvanced(false); OpenSettings(false);
+                        var accepted = ConfirmDialog("Enable wireless mirroring?", "USB is recommended for the lowest latency.", "Enable wireless", "Keep USB");
+                        if (Control<Grid>("AppContent").IsEnabled || Control<Grid>("DialogOverlay").Visibility != Visibility.Visible) throw new Exception("Themed confirmation did not block background input.");
+                        Control<Button>("DialogPrimary").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        if (!accepted.IsCompleted || !accepted.Result) throw new Exception("Dialog acceptance failed.");
+                        var cancelled = ConfirmDialog("Restore defaults?", "Test only; settings are retained.", "Restore defaults"); CompleteDialog(false);
+                        if (!cancelled.IsCompleted || cancelled.Result || !Control<Grid>("AppContent").IsEnabled) throw new Exception("Dialog cancellation failed.");
+                        report.Add("PASS theme-aware modal confirmation, blocked background input, accept and cancel");
                         if (!(Control<Image>("BrandIcon").Source is DrawingImage)) throw new Exception("SVG logo missing.");
                         report.Add("PASS embedded SVG app logo");
                         report.Add("Native material: " + Appearance.Material);

@@ -10,7 +10,10 @@ namespace AndroidMirror
     {
         public bool AudioEnabled = true;
         public bool ControlEnabled = true;
-        public MirrorOptions Copy() { return new MirrorOptions { AudioEnabled = AudioEnabled, ControlEnabled = ControlEnabled }; }
+        public List<EngineSetting> Advanced = new List<EngineSetting>();
+        public List<EnvironmentSetting> Environment = new List<EnvironmentSetting>();
+        public bool Has(string name) { return Advanced.Any(s => s.Enabled && s.Name == name); }
+        public MirrorOptions Copy() { return new MirrorOptions { AudioEnabled = AudioEnabled, ControlEnabled = ControlEnabled, Advanced = Advanced.Select(s => s.Copy()).ToList(), Environment = Environment.Select(s => new EnvironmentSetting { Name = s.Name, Value = s.Value }).ToList() }; }
     }
     public sealed class DeviceProfile
     {
@@ -25,6 +28,9 @@ namespace AndroidMirror
         public bool AutoReconnect = true, SelectionInitialized;
         public string Theme = "system";
         public string ConnectionMode = "usb";
+        public MirrorOptions DefaultOptions = new MirrorOptions();
+        public string EngineUpdatePolicy = "automatic";
+        public DateTime LastEngineUpdateCheck = DateTime.MinValue;
         public List<WirelessPeer> WirelessPeers = new List<WirelessPeer>();
         public List<DeviceProfile> Profiles = new List<DeviceProfile>();
         public static AppPreferences Load(string xmlFile, string legacyFile)
@@ -37,8 +43,11 @@ namespace AndroidMirror
                     {
                         var result = (AppPreferences)new XmlSerializer(typeof(AppPreferences)).Deserialize(input);
                         result.Profiles = (result.Profiles ?? new List<DeviceProfile>()).Where(p => p != null && !String.IsNullOrWhiteSpace(p.Serial)).GroupBy(p => p.Serial).Select(g => g.First()).ToList();
-                        foreach (var profile in result.Profiles) if (profile.Options == null) profile.Options = new MirrorOptions();
+                        if (result.DefaultOptions == null) result.DefaultOptions = new MirrorOptions();
+                        foreach (var options in result.Profiles.Select(p => p.Options ?? (p.Options = new MirrorOptions())).Concat(new[] { result.DefaultOptions }))
+                        { if (options.Advanced == null) options.Advanced = new List<EngineSetting>(); if (options.Environment == null) options.Environment = new List<EnvironmentSetting>(); }
                         if (result.WirelessPeers == null) result.WirelessPeers = new List<WirelessPeer>();
+                        if (!new[] { "off", "check", "automatic" }.Contains(result.EngineUpdatePolicy)) result.EngineUpdatePolicy = "automatic";
                         if (!new[] { "usb", "wireless", "adaptive" }.Contains(result.ConnectionMode)) result.ConnectionMode = "usb";
                         return result;
                     }
@@ -78,16 +87,16 @@ namespace AndroidMirror
         public DeviceProfile Profile;
         public ConnectionController Controller;
         public Device Device;
-        public bool Connected { get { return Device != null && Device.State == "device"; } }
+        public bool Connected { get { return Device != null && (Device.State == "device" || (Profile.Options.Has("--otg") && !Device.IsWireless)); } }
         public string Status
         {
             get
             {
                 if (Controller.Stopping) return "Reopening or stopping…";
-                if (Controller.Active != null) return Controller.Active.Ready ? "Mirroring" : "Opening mirror…";
+                if (Controller.Active != null) return Controller.Active.Ready ? Profile.Options.Has("--otg") ? "USB input active" : Profile.Options.Has("--no-window") || Profile.Options.Has("--no-video") ? "Session running" : "Mirroring" : "Opening mirror…";
                 if (!String.IsNullOrEmpty(Controller.Error)) return "Couldn’t start · check Connection help";
-                if (Device != null && Device.State == "unauthorized") return "Allow USB debugging on this device";
-                if (Device != null && Device.State != "device") return "Device offline";
+                if (!Profile.Options.Has("--otg") && Device != null && Device.State == "unauthorized") return "Allow USB debugging on this device";
+                if (!Profile.Options.Has("--otg") && Device != null && Device.State != "device") return "Device offline";
                 if (!Connected) return Profile.Selected && Controller.Wanted ? "Waiting to reconnect" : "Disconnected";
                 return Profile.Selected ? "Ready to mirror" : "Select to mirror";
             }
@@ -97,6 +106,7 @@ namespace AndroidMirror
     public sealed class MultiDeviceController : IDisposable
     {
         readonly Dictionary<string, DeviceSlot> slots = new Dictionary<string, DeviceSlot>();
+        readonly HashSet<string> removedUntilDisconnect = new HashSet<string>();
         readonly Func<DeviceProfile, IMirrorSession> create;
         readonly Action<Action> dispatch;
         readonly Func<DateTime> now;
@@ -113,7 +123,7 @@ namespace AndroidMirror
         DeviceSlot Add(DeviceProfile profile)
         {
             var slot = new DeviceSlot { Profile = profile };
-            slot.Controller = new ConnectionController(serial => create(profile), dispatch, now) { Target = profile.Serial, AutoReconnect = Preferences.AutoReconnect, Wanted = profile.Selected && Preferences.AutoReconnect };
+            slot.Controller = new ConnectionController(serial => create(profile), dispatch, now) { Target = profile.Serial, AutoReconnect = Preferences.AutoReconnect, Wanted = profile.Selected && Preferences.AutoReconnect, AdditionalTransport = device => profile.Options.Has("--otg") && !device.IsWireless };
             slots.Add(profile.Serial, slot); slot.Controller.Changed += Notify;
             return slot;
         }
@@ -126,14 +136,16 @@ namespace AndroidMirror
         {
             if (disposed) return;
             batching = true; AllDevices = devices;
-            devices = devices.Where(d => Preferences.ConnectionMode == "adaptive" || (Preferences.ConnectionMode == "wireless" ? d.IsWireless : !d.IsWireless)).GroupBy(d => d.Key).Select(g => g.OrderByDescending(d => d.State == "device").ThenBy(d => d.IsWireless).First()).ToList();
+            removedUntilDisconnect.RemoveWhere(key => !devices.Any(d => d.Key == key));
+            devices = devices.Where(d => !removedUntilDisconnect.Contains(d.Key)).ToList();
+            devices = devices.Where(d => (Preferences.ConnectionMode == "adaptive" || (Preferences.ConnectionMode == "wireless" ? d.IsWireless : !d.IsWireless)) && (!d.IsWireless || !OptionsFor(d.Key).Has("--otg"))).GroupBy(d => d.Key).Select(g => g.OrderByDescending(d => d.State == "device" || (OptionsFor(d.Key).Has("--otg") && !d.IsWireless)).ThenBy(d => d.IsWireless).First()).ToList();
             Devices = devices;
             foreach (var device in devices)
             {
                 DeviceSlot slot;
                 if (!slots.TryGetValue(device.Key, out slot))
                 {
-                    var profile = new DeviceProfile { Serial = device.Key, Name = device.Name };
+                    var profile = new DeviceProfile { Serial = device.Key, Name = device.Name, Options = Preferences.DefaultOptions.Copy() };
                     Preferences.Profiles.Add(profile); slot = Add(profile);
                 }
                 slot.Profile.Name = device.Name;
@@ -180,6 +192,24 @@ namespace AndroidMirror
         {
             var slot = slots[serial]; slot.Profile.Selected = true; Preferences.SelectionInitialized = true;
             slot.Controller.Connect(); Notify();
+        }
+        public void ApplyOptions(string serial, MirrorOptions options)
+        {
+            var slot = slots[serial]; bool transportChanged = slot.Profile.Options.Has("--otg") != options.Has("--otg"); slot.Profile.Options = options.Copy();
+            if (transportChanged) UpdateDevices(AllDevices.ToList());
+            if (slot.Controller.Wanted) slot.Controller.Restart(); Notify();
+        }
+        MirrorOptions OptionsFor(string key) { DeviceSlot slot; return slots.TryGetValue(key, out slot) ? slot.Profile.Options : Preferences.DefaultOptions; }
+        public void Remove(string serial)
+        {
+            DeviceSlot slot; if (!slots.TryGetValue(serial, out slot)) return;
+            batching = true;
+            if (AllDevices.Any(d => d.Key == serial)) removedUntilDisconnect.Add(serial);
+            slot.Controller.Stop(); slot.Controller.Dispose(); slots.Remove(serial);
+            Preferences.Profiles.Remove(slot.Profile);
+            Preferences.WirelessPeers.RemoveAll(peer => peer.PhysicalId == serial || peer.Endpoint == slot.Profile.TransportSerial || (!String.IsNullOrEmpty(peer.ServiceName) && slot.Profile.TransportSerial.StartsWith(peer.ServiceName + ".", StringComparison.Ordinal)));
+            Devices.RemoveAll(d => d.Key == serial);
+            batching = false; Notify();
         }
         public void Stop(string serial) { slots[serial].Controller.Stop(); Notify(); }
         public void ConnectSelected() { batching = true; foreach (var slot in Slots.Where(s => s.Profile.Selected)) slot.Controller.Connect(); batching = false; Notify(); }

@@ -77,6 +77,7 @@ namespace AndroidMirror
             resources["Canvas"] = contrast ? SystemColors.WindowBrush : GlassEnabled ? System.Windows.Media.Brushes.Transparent : Brush(canvas);
             resources["Surface"] = contrast ? SystemColors.WindowBrush : Brush(IsDark ? (GlassEnabled ? "#B8323232" : "#2B2B2B") : (GlassEnabled ? "#CFFFFFFF" : "#FFFFFF"));
             resources["PopupSurface"] = contrast ? SystemColors.WindowBrush : Brush(IsDark ? "#2B2B2B" : "#FFFFFF");
+            resources["DialogFooter"] = contrast ? SystemColors.WindowBrush : Brush(IsDark ? "#202020" : "#F3F3F3");
             resources["Text"] = contrast ? SystemColors.WindowTextBrush : Brush(IsDark ? "#F4F4F4" : "#1B1B1B");
             resources["Muted"] = contrast ? SystemColors.WindowTextBrush : Brush(IsDark ? "#C0C0C0" : "#606060");
             resources["Stroke"] = contrast ? SystemColors.WindowTextBrush : Brush(IsDark ? "#505050" : "#DEDEDE");
@@ -106,6 +107,7 @@ namespace AndroidMirror
         bool dark;
         public event Action OpenRequested, QuitRequested, MirrorRequested, SettingsRequested;
         public event Action<string> Error;
+        public void NotifyUpdate(string version) { icon.ShowBalloonTip(5000, "Android Mirror", "Mirroring engine " + version + " is available. Open Settings for details.", Forms.ToolTipIcon.Info); }
         [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr handle);
         public TrayIntegration(string executable, string startupName, bool visible = true)
         {

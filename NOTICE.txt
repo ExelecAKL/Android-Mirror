@@ -8,23 +8,11 @@ Android is a trademark of Google LLC. Android platform and Android Debug Bridge
 work are credited to Google and the Android Open Source Project. Their code and
 trademarks remain subject to their respective licences and brand terms.
 
-The Android Mirror logo composition was supplied by the project creator.
-The Android robot is reproduced or modified from work created and shared by
+The Android robot artwork in the Android Mirror logo is reproduced or modified from work created and shared by
 Google and used according to terms described in the Creative Commons 3.0
 Attribution License: https://creativecommons.org/licenses/by/3.0/
 
-The bundled, unmodified scrcpy 5.0.1 engine is by Genymobile, Romain Vimont,
-and contributors. Original Apache 2.0 notices are preserved in engine/LICENSE.txt
-and licenses/scrcpy-LICENSE.txt. https://github.com/Genymobile/scrcpy
-
-QRCoder 1.8.1 is by Raffael Herrmann, Shane Krueger, and contributors.
-Its MIT licence is preserved in licenses/QRCoder-LICENSE.txt.
-https://github.com/Shane32/QRCoder
-
-FFmpeg libraries are used under LGPL 2.1 or later; SDL uses the zlib licence;
-libusb uses LGPL 2.1 or later. Additional runtime notices and source links are
-listed in licenses/THIRD-PARTY.md. Ownership stays with the respective holders.
 
 Changes in this distribution: a separate Windows UI, device/session management,
 wireless pairing UI, tray integration, installer, custom logo composition, and
-compatibility launchers. The bundled engine binaries have not been modified.
+engine entry. Runtime executable icon resources and filenames are branded; engine code is unchanged.
