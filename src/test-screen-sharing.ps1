@@ -1,3 +1,4 @@
+param([switch]$Baseline)
 $ErrorActionPreference = 'Stop'
 $packageDirectory = Split-Path -Parent $PSScriptRoot
 $testDirectory = Join-Path $packageDirectory 'build\tests'
@@ -17,7 +18,14 @@ $references = @(
 $probe = Join-Path $testDirectory 'screen-sharing-capture-tests.exe'
 $targetExecutable = Join-Path $testDirectory 'sdl-capture-target.exe'
 $manifest = '/win32manifest:' + (Join-Path $PSScriptRoot 'app.manifest')
-& $compiler /nologo /target:exe /platform:x64 $manifest ('/out:' + $probe) @references (Join-Path $PSScriptRoot 'tests\ScreenSharingCaptureTests.cs') (Join-Path $PSScriptRoot 'ScreenSharingWindow.cs')
+$windowSource = Join-Path $PSScriptRoot 'ScreenSharingWindow.cs'
+if ($Baseline) {
+    $windowSource = Join-Path $testDirectory 'ScreenSharingWindow-baseline.cs'
+    $baselineSource = & git show 'v1.1.2:src/ScreenSharingWindow.cs'
+    if ($LASTEXITCODE -ne 0) { throw 'Could not read the released window-management baseline.' }
+    [IO.File]::WriteAllLines($windowSource,$baselineSource,[Text.UTF8Encoding]::new($false))
+}
+& $compiler /nologo /target:exe /platform:x64 $manifest ('/out:' + $probe) @references (Join-Path $PSScriptRoot 'tests\ScreenSharingCaptureTests.cs') $windowSource
 if ($LASTEXITCODE -ne 0) { throw 'Capture test build failed.' }
 & $compiler /nologo /target:winexe /platform:x64 $manifest ('/out:' + $targetExecutable) (Join-Path $PSScriptRoot 'tests\SdlCaptureTarget.cs')
 if ($LASTEXITCODE -ne 0) { throw 'SDL capture fixture build failed.' }
@@ -26,9 +34,11 @@ $target = Start-Process -FilePath $targetExecutable -ArgumentList ('"' + $handle
 try {
     for ($attempt = 0; $attempt -lt 50 -and -not (Test-Path -LiteralPath $handleFile); $attempt++) { Start-Sleep -Milliseconds 100 }
     if (-not (Test-Path -LiteralPath $handleFile)) { throw 'The temporary SDL window did not start.' }
-    & $probe (Get-Content -LiteralPath $handleFile) $target.Id | Tee-Object -FilePath (Join-Path $reportDirectory 'screen-sharing-capture.txt')
+    $reportName = if ($Baseline) { 'screen-sharing-capture-baseline.txt' } else { 'screen-sharing-capture.txt' }
+    & $probe (Get-Content -LiteralPath $handleFile) $target.Id $handleFile | Tee-Object -FilePath (Join-Path $reportDirectory $reportName)
     if ($LASTEXITCODE -ne 0) { throw 'Live screen sharing capture checks failed.' }
 } finally {
     if (-not $target.HasExited) { $target.CloseMainWindow() | Out-Null; if (-not $target.WaitForExit(3000)) { $target.Kill() } }
     if (Test-Path -LiteralPath $handleFile) { Remove-Item -LiteralPath $handleFile }
+    if (Test-Path -LiteralPath ($handleFile + '.command')) { Remove-Item -LiteralPath ($handleFile + '.command') }
 }

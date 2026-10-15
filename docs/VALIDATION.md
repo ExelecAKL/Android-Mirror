@@ -1,4 +1,4 @@
-# Validation — Android Mirror 1.1.2
+# Validation — Android Mirror 1.1.3
 
 ## Automated coverage
 
@@ -27,7 +27,9 @@ The app's `--self-check` path exercises background startup, tray restore, close-
 
 `src/build-setup.ps1` performs eight installer checks using a workspace fixture: path traversal rejection; full installation with the branded engine and a single app launcher; native shortcut identity, target and icon; shortcut repair and cleanup without removing another installation's link; reinstall preservation of unrelated files; app upgrade preservation of a customized engine and app updater; rollback after a locked file interrupts app replacement; and uninstall removal of owned files while retaining unrelated files. It does not install into Program Files or change Windows installation settings.
 
-`src/test-screen-sharing.ps1` creates an animated SDL window using the bundled SDL3.dll and reads changing pixel samples through the real Windows Graphics Capture and D3D11 APIs. Checks cover background minimize, continuing captured frames, repeated minimize, taskbar-style activation, restored bounds, maximized restore, disabling/re-enabling the setting, and cleanup. Background samples continued changing across more than 100 captured frames. This validates the rendering/capture path, not an OBS recording or a Discord call. Windows SDK metadata is needed only to compile this optional test.
+`src/test-screen-sharing.ps1` creates an animated SDL window using the bundled SDL3.dll and reads changing pixel samples through the real Windows Graphics Capture and D3D11 APIs. Its fixture models content-driven portrait/landscape resizing and gray letterboxing. Checks cover continuing background frames, repeated minimize, rotations while parked and after restore, preserved client dimensions, activation without fresh input, maximized rotation and unmaximize, setting changes, and cleanup. Capture buffers and readback textures are recreated when the window dimensions change. Background samples continued changing across more than 100 captured frames. Activation checks use controlled input timestamps alongside real native foreground events; physical taskbar/Alt+Tab interaction is not automated by this fixture.
+
+Running with `-Baseline` against the fetched `v1.1.2` source tag reproduces the stale-size restoration failure. The corrected implementation passes the same sequence, including rotation from a parked maximized window. This validates the SDL rendering/capture path, not a fresh OBS recording, Discord call, or mixed-DPI multi-monitor setup. Windows SDK metadata is needed only to compile this optional test.
 
 ## Visual and native integration checks
 

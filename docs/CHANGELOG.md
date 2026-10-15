@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.3 — 2026-10-15
+
+- Keep the engine's latest window dimensions when restoring a mirror after rotation, preventing stale portrait/landscape sizing and the resulting large gray letterbox areas.
+- Move the background window without resizing or repeatedly rebuilding its frame. Prefer parking near the original monitor to reduce DPI changes.
+- Ignore foreground changes without new PC input after minimizing, preventing a delayed activation from reopening the mirror. Repeated minimize requests reset this guard.
+- Normalize a maximized mirror during background capture so rotation can resize it; restore the maximized state and retain the rotated size for a later unmaximize.
+- Extend the live SDL/Windows Graphics Capture regression with repeated rotations, changing capture dimensions, activation without fresh input, and maximized rotation. The released 1.1.2 code fails the new size-restoration check; the corrected implementation passes.
+
 ## 1.1.2 — 2026-10-15
 
 - Repair Windows Start menu shortcut identity so notification headers resolve Android Mirror and its logo instead of the internal app ID.
