@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1 — 2026-10-15
+
+- Keep sharing when minimized: preserves the same drawable mirror window outside the desktop for modern Windows window capture, with taskbar/Alt+Tab restoration and a Settings toggle enabled by default.
+- Daily checks for Android Mirror's own GitHub releases, themed update prompts, release notes, verified downloads, and an unelevated restart after the modern installer completes. Portable copies open the release download page.
+- App update / Engine based update labels and readable What’s changed summaries in the popup. Both offer Install update / Remind me later; engine installation requires consent before waiting for active mirrors to stop.
+- App upgrades retain the current mirroring engine and roll back app files if replacement fails. Version 1.1.0 users need to install this release once before app-update prompts become available.
+- Android Mirror branding and our GitHub repository in displayed connection logs, while preserving error/device details and original licence notices.
+- Native notifications use the Android Mirror logo and a dedicated Windows application identity instead of stock information artwork.
+- One newly discovered, authorized device opens immediately with automatic connection enabled, including alongside existing mirrors. Explicit Stop and deselection choices are retained.
+
 ## 1.1.0 — 2026-10-15
 
 - Searchable Advanced sections for all 109 bundled engine options, including UHID, shortcut modifiers, mouse bindings, recording, camera, virtual displays, gamepads, capability queries, and USB input-only mode.

@@ -43,39 +43,9 @@ try {
     }
 } finally { $archive.Dispose() }
 
-$notes = @'
-# Android Mirror 1.1.0
-
-A native Windows shell for mirroring your Android devices, with automatic reconnection, per-device settings, and in-app wireless pairing.
-
-- New Android Mirror logo, Windows light/dark themes, acrylic where supported, animated controls, and a dark native tray menu.
-- Mirror a phone and tablet at once with separate audio and PC control options.
-- USB only (default), Wireless only, and Adaptive modes. Adaptive prefers USB and can hand over to an available paired Wi-Fi transport.
-- QR pairing or manual IP, pairing port, and six-digit code entry, with no ADB terminal windows.
-- Native Windows confirmation before enabling wireless: Wi-Fi can add latency; USB offers the lowest delay.
-- Windows 11 style theme-aware confirmation dialogs, unboxed navigation, rounded checkboxes, clean chevrons, and a section picker beside an icon/placeholder search field.
-- Advanced access to all 109 bundled engine options, including UHID keyboard input, shortcut modifiers, mouse bindings, recording, virtual displays, camera, gamepad, capability queries, and USB input-only mode.
-- Per-device and app defaults, unique recording filenames, and Manage devices to remove saved profiles without stopping other mirrors.
-- Official engine release notes, SHA-256 verified downloads, idle installation, incremental file application with backups/rollback, and protection for locally modified engines.
-- Program Files installation, optional desktop shortcut, background tray operation, and a portable ZIP.
-- Modern theme-aware installer and uninstaller with app artwork and clear progress.
-- A single Android Mirror.exe launcher and a branded Android Mirror Engine.exe runtime. Engine updates preserve that filename and icon automatically; executable code remains upstream code.
-
-## Downloads
-
-- **Android-Mirror-1.1.0-Setup.exe** — install for all users in Program Files.
-- **Android-Mirror-1.1.0-Windows-x64.zip** — extract and run Android Mirror.exe.
-- **Android-Mirror-1.1.0-Runtime-Sources.zip** — matching sources and build metadata for bundled FFmpeg, libusb, SDL, and dav1d. FFmpeg uses LGPL 2.1 or later.
-- **SHA256SUMS.txt** — verify downloaded files with Get-FileHash -Algorithm SHA256.
-
-Windows 10/11 x64 and .NET Framework 4.8 are required. Wireless pairing and audio forwarding require Android 11+. The executables are unsigned. This is a GitHub release, not a Microsoft Store listing.
-
-## Validation and limitations
-
-51 automated connection, feature, and updater checks and five installer checks pass. Native shell checks cover tray/background behavior, themes, SVG/QR rendering, pairing navigation, Advanced search/reset, rounded controls, and modal acceptance/cancellation. Physical camera pairing, audio routing, input, and cable/Wi-Fi handover still require testing on actual devices. Wireless discovery can be blocked by network configuration; manual connection remains available. Individual shortcut actions cannot be freely remapped; the engine exposes shortcut modifiers and mouse bindings. V4L2 output is Linux-only.
-
-Android Mirror is independent and is not affiliated with or endorsed by Google. Android is a trademark of Google LLC. Google/Android, the original mirroring engine authors, and runtime-library credits and licence notices are included with every package.
-'@
+$notesPath = Join-Path $packageDirectory ('docs\releases\' + $version + '.md')
+if (-not (Test-Path -LiteralPath $notesPath)) { throw 'Add versioned release notes under docs/releases before packaging.' }
+$notes = Get-Content -LiteralPath $notesPath -Raw -Encoding UTF8
 [IO.File]::WriteAllText((Join-Path $releaseDirectory 'RELEASE-NOTES.md'), $notes, [Text.UTF8Encoding]::new($false))
 $hashes = Get-ChildItem -LiteralPath $releaseDirectory -File | Where-Object { $_.Extension -in @('.exe','.zip') } | Sort-Object Name | ForEach-Object { (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name }
 [IO.File]::WriteAllLines((Join-Path $releaseDirectory 'SHA256SUMS.txt'), $hashes, [Text.UTF8Encoding]::new($false))

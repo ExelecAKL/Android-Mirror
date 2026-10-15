@@ -61,11 +61,13 @@ namespace AndroidMirrorSetup
                 if (!files.Contains(required)) throw new IOException("The package is incomplete: " + required);
             return files;
         }
-        public static void Install(string target, bool windowsIntegration, bool desktop, Action<string> progress)
+        public static void Install(string target, bool windowsIntegration, bool desktop, Action<string> progress, bool preserveEngine = false)
         {
             if (windowsIntegration) { CheckTarget(target); StopApp(target); }
             string staging = Path.Combine(Path.GetTempPath(), "AndroidMirrorSetup-" + Guid.NewGuid().ToString("N"));
             List<string> files = null;
+            var backups = new List<string>(); var touched = new List<string>();
+            bool keepRecovery = false;
             try
             {
                 progress("Preparing the mirroring components…");
@@ -73,15 +75,36 @@ namespace AndroidMirrorSetup
                 Directory.CreateDirectory(target);
                 string oldManifest = Path.Combine(target, Manifest);
                 var formerFiles = File.Exists(oldManifest) ? File.ReadAllLines(oldManifest) : new string[0];
-                foreach (string relative in files.OrderBy(value => value.StartsWith("engine/") ? 0 : 1))
-                {
+                if (preserveEngine && (!formerFiles.Contains("engine/engine-manifest.json") || !File.Exists(SafePath(target, "engine/Android Mirror Runtime.bin")) || !File.Exists(SafePath(target, "engine/engine-manifest.json")))) throw new IOException("The existing engine is incomplete. Reinstall Android Mirror to repair it.");
+                var copies = files.Where(value => !preserveEngine || !value.StartsWith("engine/", StringComparison.OrdinalIgnoreCase) || value == "engine/Android Mirror Engine.exe").ToArray();
+                var receipt = copies.Concat(preserveEngine ? formerFiles.Where(value => value.StartsWith("engine/", StringComparison.OrdinalIgnoreCase) && File.Exists(SafePath(target, value))) : new string[0])
+                    .Concat(formerFiles.Where(value => value.StartsWith("updates/backups/", StringComparison.OrdinalIgnoreCase) && File.Exists(SafePath(target, value)))).Concat(new[] { Manifest }).Distinct().ToArray();
+                var retired = new[] { "scrcpy.exe", "scrcpy-connect.exe", "engine/scrcpy.exe" }.Where(value => formerFiles.Contains(value) && !receipt.Contains(value)).ToArray();
+                Action<string> backup = relative => {
                     string destination = SafePath(target, relative);
-                    Directory.CreateDirectory(Path.GetDirectoryName(destination));
-                    File.Copy(SafePath(staging, relative), destination, true);
+                    if (File.Exists(destination)) { string copy = SafePath(staging, ".rollback/" + relative); Directory.CreateDirectory(Path.GetDirectoryName(copy)); File.Copy(destination, copy); backups.Add(".rollback/" + relative); }
+                    touched.Add(relative);
+                };
+                try
+                {
+                    foreach (string relative in copies.OrderBy(value => value.StartsWith("engine/") ? 0 : 1))
+                    {
+                        string destination = SafePath(target, relative);
+                        backup(relative); Directory.CreateDirectory(Path.GetDirectoryName(destination)); CopyFile(SafePath(staging, relative), destination, true);
+                    }
+                    foreach (string relative in retired) { backup(relative); File.Delete(SafePath(target, relative)); }
+                    backup(Manifest); File.WriteAllLines(oldManifest, receipt);
                 }
-                foreach (string retired in new[] { "scrcpy.exe", "scrcpy-connect.exe", "engine/scrcpy.exe" })
-                    if (formerFiles.Contains(retired) && !files.Contains(retired)) File.Delete(SafePath(target, retired));
-                File.WriteAllLines(Path.Combine(target, Manifest), files.Concat(new[] { Manifest }));
+                catch (Exception error)
+                {
+                    foreach (string relative in touched.AsEnumerable().Reverse())
+                    {
+                        string copy = SafePath(staging, ".rollback/" + relative), destination = SafePath(target, relative);
+                        try { if (File.Exists(copy)) { if (!SameContent(copy, destination)) CopyFile(copy, destination, true); } else if (File.Exists(destination)) File.Delete(destination); }
+                        catch { keepRecovery = true; }
+                    }
+                    throw new IOException(keepRecovery ? "Setup could not finish. Recovery files were kept at " + staging : "Setup could not finish. The previous app files were restored.", error);
+                }
                 if (windowsIntegration)
                 {
                     progress("Adding Windows shortcuts…");
@@ -91,17 +114,36 @@ namespace AndroidMirrorSetup
                     if (desktop) Shortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), "Android Mirror.lnk"), Path.Combine(target, "Android Mirror.exe"), target);
                     using (var key = Registry.LocalMachine.CreateSubKey(UninstallKey))
                     {
-                        key.SetValue("DisplayName", "Android Mirror"); key.SetValue("DisplayVersion", "1.1.0");
+                        key.SetValue("DisplayName", "Android Mirror"); key.SetValue("DisplayVersion", FileVersionInfo.GetVersionInfo(Path.Combine(target, "Android Mirror.exe")).FileVersion);
                         key.SetValue("Publisher", "Android Mirror"); key.SetValue("InstallLocation", target);
                         key.SetValue("DisplayIcon", Path.Combine(target, "Android Mirror.exe"));
                         key.SetValue("UninstallString", Quote(Path.Combine(target, "Uninstall Android Mirror.exe")));
                         key.SetValue("NoModify", 1); key.SetValue("NoRepair", 1);
-                        key.SetValue("EstimatedSize", (int)(files.Sum(file => new FileInfo(SafePath(target, file)).Length) / 1024));
+                        key.SetValue("EstimatedSize", (int)(receipt.Where(file => File.Exists(SafePath(target, file))).Sum(file => new FileInfo(SafePath(target, file)).Length) / 1024));
                     }
                 }
                 progress("Android Mirror is installed.");
             }
-            finally { if (files != null) RemoveFiles(staging, files, false); }
+            finally { if (files != null && !keepRecovery) RemoveFiles(staging, files.Concat(backups), false); }
+        }
+        static bool SameContent(string first, string second)
+        {
+            if (!File.Exists(second) || new FileInfo(first).Length != new FileInfo(second).Length) return false;
+            using (var hash = System.Security.Cryptography.SHA256.Create()) using (var a = File.OpenRead(first)) using (var b = File.OpenRead(second)) return hash.ComputeHash(a).SequenceEqual(hash.ComputeHash(b));
+        }
+        static void CopyFile(string source, string destination, bool overwrite)
+        {
+            var wait = Stopwatch.StartNew();
+            for (;;)
+            {
+                try { File.Copy(source, destination, overwrite); return; }
+                catch (IOException error)
+                {
+                    int code = error.HResult & 0xFFFF;
+                    if ((code != 32 && code != 33) || wait.ElapsedMilliseconds > 3000) throw;
+                    Thread.Sleep(100);
+                }
+            }
         }
         public static void Shortcut(string destination, string executable, string workingDirectory)
         {

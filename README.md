@@ -31,9 +31,11 @@
 | **Control is optional** | Use your mouse and keyboard, or switch a device to view only. |
 | **USB and Wi-Fi** | Choose USB only, Wireless only, or Adaptive. Pair with a QR code or a six-digit code inside the app. |
 | **Quiet in the tray** | Close the launcher to keep detection running. Restore it from the native Windows tray menu. |
+| **Keep sharing in the background** | Minimize the mirror while its picture stays live for modern Windows window capture. |
 | **A familiar Windows feel** | System, light, and dark themes; acrylic where supported; subtle motion; your Android Mirror logo throughout. |
 | **Advanced when you need it** | Search all 109 engine options, including UHID, keyboard modifiers, mouse bindings, recording, camera, virtual displays, and gamepads. |
 | **Engine updates built in** | Check official releases, read changes, and install verified updates while idle. Local engine modifications pause binary updates. |
+| **Android Mirror updates** | Daily checks for our app releases, a themed update prompt, verified installer downloads, and restart after updating. |
 
 All options live behind one **Settings** icon. Audio and control choices are saved separately for every device.
 
@@ -43,7 +45,7 @@ All options live behind one **Settings** icon. Audio and control choices are sav
 
 ### Install
 
-1. Download **Android-Mirror-1.1.0-Setup.exe** from [Releases](https://github.com/ExelecAKL/Android-Mirror/releases/latest).
+1. Download **Android-Mirror-1.1.1-Setup.exe** from [Releases](https://github.com/ExelecAKL/Android-Mirror/releases/latest).
 2. Run the installer and approve the Windows elevation prompt.
 3. Open **Android Mirror** from Start.
 
@@ -51,7 +53,9 @@ The installer uses `C:\Program Files\Android Mirror`, adds a Start menu shortcut
 
 <p align="center"><img src="assets/screenshots/installer-dark.png" alt="Android Mirror's modern dark installer with app icon, installation location and rounded controls" width="520" /></p>
 
-For a portable copy, extract **Android-Mirror-1.1.0-Windows-x64.zip** and open `Android Mirror.exe`. Keep its `engine` folder beside it. The release executables are currently unsigned.
+For a portable copy, extract **Android-Mirror-1.1.1-Windows-x64.zip** and open `Android Mirror.exe`. Keep its `engine` folder beside it. The release executables are currently unsigned.
+
+**Already using 1.1.0?** Install 1.1.1 once from Releases. Version 1.1.0 cannot show app-update prompts; automatic app-release checks start with 1.1.1. Your preferences and installed engine are retained on upgrade.
 
 ### Connect with USB
 
@@ -60,6 +64,8 @@ For a portable copy, extract **Android-Mirror-1.1.0-Windows-x64.zip** and open `
 3. Select the devices you want to mirror.
 
 USB is the default. With **Connect automatically** enabled, the first single device connects automatically and selected devices reconnect when they return. When several devices appear for the first time, choose which ones to mirror.
+
+Plugging in one newly discovered device also opens its mirror alongside existing mirrors as soon as Android authorizes it. An explicitly stopped or deselected device remains paused.
 
 ### Connect over Wi-Fi
 
@@ -92,6 +98,12 @@ Changing audio or controls briefly reopens only that device's active mirror. Aud
 
 Closing a mirror pauses that device. Closing the launcher keeps it in the tray. Choose **Quit Android Mirror** from the tray menu to stop the app and its mirrors.
 
+### Share through OBS or Discord
+
+Choose the **mirror window** as the sharing source. **Settings → Keep sharing when minimized** is on by default. Minimize moves that same drawable window outside the desktop so capture can continue; clicking its taskbar icon or using Alt+Tab restores it. Closing the mirror still stops it.
+
+In OBS Window Capture, use **Automatic** or the modern **Windows 10 (1903 and up) / WGC** capture method. Legacy BitBlt and whole-display capture are not supported by this background behavior. Live Windows capture was tested with the bundled renderer; an actual Discord call still needs end-to-end verification. Background sharing continues rendering and uses GPU resources.
+
 <details>
 <summary><strong>Settings and appearance</strong></summary>
 
@@ -116,7 +128,13 @@ Keyboard shortcut modifiers and mouse bindings are editable. The complete shortc
 
 ## Updates without losing your setup
 
-Settings offers **Off**, **Check only**, or **Automatic** engine updates. Automatic mode checks daily, downloads a package when mirroring is idle, verifies its SHA-256 against official GitHub metadata, and installs once the app has been idle in the tray for two minutes. Program Files installations may require Windows administrator approval. Active mirrors are not interrupted for an automatic installation.
+**Android Mirror updates** checks this project's GitHub releases daily and asks before installing. Installed copies download a size- and SHA-256-verified installer, request Windows administrator approval, stop their mirrors, update, and restart at the original user's privilege level. **Remind me later** defers the prompt for a day. Release notes and a manual check are in Settings. Portable copies get the same checks and a link to download the new version.
+
+<p align="center"><img src="assets/screenshots/app-update-dark.png" alt="Android Mirror's themed Install update and Remind me later popup, with a demonstration version" width="380" /></p>
+
+App upgrades keep the current engine, including newer or custom builds, and attempt to restore previous app files if replacement fails. Version 1.1.0 needs the one-time manual update described above.
+
+Settings offers **Off**, **Check only**, or **Automatic** engine updates. Both app and engine update popups show **What’s changed**, with an **App update** or **Engine based update** label. **Remind me later** defers that version for a day. Engine Automatic mode checks daily and can download a verified package while mirroring is idle, but installation requires **Install update** approval first. Approved engine updates wait for active mirrors to stop. Program Files installations may require Windows administrator approval.
 
 The updater replaces changed engine files, adds new files, and removes obsolete owned files. It preserves the UI, preferences, recordings, unrelated files, and unchanged engine files. Failed installations attempt rollback from a backup. Packages are full downloads; file application is incremental.
 
@@ -133,7 +151,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\src\fetch-runtime-sources.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\src\build-release.ps1
 ```
 
-The first command builds the app and runs the connection tests. The second builds and validates the installer. The third downloads and verifies matching upstream runtime sources. The last creates the portable ZIP, versioned installer, runtime source bundle, release notes, and checksums in `releases/1.1.0`.
+The first command builds the app and runs the connection tests. The second builds and validates the installer. The third downloads and verifies matching upstream runtime sources. The last creates the portable ZIP, versioned installer, runtime source bundle, release notes, and checksums in `releases/1.1.1`. The optional `src/test-screen-sharing.ps1` live capture test requires Windows SDK metadata and an interactive Windows session.
 
 ```text
 Android Mirror.exe   Desktop app

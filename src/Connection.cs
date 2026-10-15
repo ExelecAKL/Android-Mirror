@@ -172,12 +172,15 @@ namespace AndroidMirror
         readonly Process process;
         readonly Action<string> log;
         readonly bool headless;
+        bool keepSharingWhenMinimized;
+        ScreenSharingWindow sharingWindow;
         readonly Stopwatch lifetime = new Stopwatch();
         int released, disposing;
         public event Action<int> Exited;
-        public MirrorProcess(string directory, string serial, Action<string> log, MirrorOptions options = null, string name = null)
+        public MirrorProcess(string directory, string serial, Action<string> log, MirrorOptions options = null, string name = null, bool keepSharingWhenMinimized = true)
         {
             this.log = log;
+            this.keepSharingWhenMinimized = keepSharingWhenMinimized;
             options = (options ?? new MirrorOptions()).Copy();
             foreach (var recording in options.Advanced.Where(s => s.Enabled && s.Name == "--record" && s.Value.Length > 0))
             {
@@ -203,7 +206,13 @@ namespace AndroidMirror
             lifetime.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
+            if (!headless) sharingWindow = new ScreenSharingWindow(process.Id, keepSharingWhenMinimized, log);
             process.EnableRaisingEvents = true;
+        }
+        public bool KeepSharingWhenMinimized
+        {
+            get { return keepSharingWhenMinimized; }
+            set { keepSharingWhenMinimized = value; var watcher = sharingWindow; if (watcher != null) watcher.Enabled = value; }
         }
         public void Stop()
         {
@@ -237,7 +246,7 @@ namespace AndroidMirror
             catch (System.ComponentModel.Win32Exception) { }
             finally { ReleaseProcess(); }
         }
-        void ReleaseProcess() { if (Interlocked.Exchange(ref released, 1) == 0) process.Dispose(); }
+        void ReleaseProcess() { if (Interlocked.Exchange(ref released, 1) == 0) { if (sharingWindow != null) sharingWindow.Dispose(); process.Dispose(); } }
         public static string Arguments(string serial, MirrorOptions options, string name)
         {
             return EngineArguments.Build(serial, options, name);

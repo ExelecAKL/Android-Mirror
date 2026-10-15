@@ -27,7 +27,7 @@ namespace AndroidMirror
         {
             http = handler == null ? new HttpClient() : new HttpClient(handler);
             http.Timeout = TimeSpan.FromMinutes(5);
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("AndroidMirror/1.1.0");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("AndroidMirror/" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3));
             http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         }
         public async Task<EngineRelease> Get(string tag, CancellationToken token)
@@ -80,10 +80,10 @@ namespace AndroidMirror
                             await destination.WriteAsync(buffer, 0, count, token).ConfigureAwait(false);
                             if (progress != null) progress((int)(100 * total / release.Size));
                         }
-                        if (total != release.Size) throw new IOException("The engine download is incomplete.");
+                        if (total != release.Size) throw new IOException("The update download is incomplete.");
                     }
                 }
-                if (!String.Equals(Hash(partial), release.Sha256, StringComparison.OrdinalIgnoreCase)) throw new IOException("The engine checksum did not match. Your current engine was kept.");
+                if (!String.Equals(Hash(partial), release.Sha256, StringComparison.OrdinalIgnoreCase)) throw new IOException("The update checksum did not match. Your current installation was kept.");
                 if (File.Exists(path)) File.Delete(path); File.Move(partial, path);
             }
             finally { if (File.Exists(partial)) File.Delete(partial); }

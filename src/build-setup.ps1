@@ -26,7 +26,7 @@ $payloadPath = Join-Path $setupDirectory 'payload.zip'
 if (Test-Path -LiteralPath $payloadPath) { Remove-Item -LiteralPath $payloadPath }
 $archive = [IO.Compression.ZipFile]::Open($payloadPath, [IO.Compression.ZipArchiveMode]::Create)
 try {
-    foreach ($name in @('Android Mirror.exe','README.md','LICENSE.txt','NOTICE.txt','assets/Android Mirror logo.svg','assets/icons/scrcpy.png','assets/icons/Android Mirror.ico','tools/Engine Updater.exe')) {
+    foreach ($name in @('Android Mirror.exe','README.md','LICENSE.txt','NOTICE.txt','assets/Android Mirror logo.svg','assets/icons/scrcpy.png','assets/icons/Android Mirror.ico','tools/Engine Updater.exe','tools/App Updater.exe')) {
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, (Join-Path $packageDirectory $name), $name, [IO.Compression.CompressionLevel]::Optimal) | Out-Null
     }
     [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $uninstaller, 'Uninstall Android Mirror.exe', [IO.Compression.CompressionLevel]::Optimal) | Out-Null

@@ -32,6 +32,12 @@ $arguments += Join-Path $sourceDirectory 'Dialogs.cs'
 $arguments += Join-Path $sourceDirectory 'ManageDevicesUi.cs'
 $arguments += Join-Path $sourceDirectory 'InputFocus.cs'
 $arguments += Join-Path $sourceDirectory 'EngineLayout.cs'
+$arguments += Join-Path $sourceDirectory 'ScreenSharingWindow.cs'
+$arguments += Join-Path $sourceDirectory 'AppUpdates.cs'
+$arguments += Join-Path $sourceDirectory 'AppUpdatesUi.cs'
+$arguments += Join-Path $sourceDirectory 'DiagnosticText.cs'
+$arguments += Join-Path $sourceDirectory 'NativeNotifications.cs'
+$arguments += Join-Path $sourceDirectory 'ReleaseNotesSummary.cs'
 if ((Get-FileHash -LiteralPath $qrLibrary -Algorithm SHA256).Hash -ne '912272105F42564AC49693F997CDE1B05C3BB5D1A7640B555CD2BF6CD852348C') { throw 'The vendored QRCoder library does not match the pinned version.' }
 $arguments += '/reference:' + $qrLibrary
 $arguments += '/resource:' + $qrLibrary + ',QRCoder.dll'
@@ -88,6 +94,10 @@ $testArguments = @('/nologo', '/target:exe', '/reference:System.Core.dll', '/ref
     ('/resource:' + (Join-Path $sourceDirectory 'engine-help.txt') + ',engine-help.txt'),
     (Join-Path $sourceDirectory 'Connection.cs'), (Join-Path $sourceDirectory 'Devices.cs'), (Join-Path $sourceDirectory 'EngineOptions.cs'), (Join-Path $sourceDirectory 'EngineUpdates.cs'), (Join-Path $sourceDirectory 'Wireless.cs'), (Join-Path $sourceDirectory 'ConnectionTests.cs'), (Join-Path $sourceDirectory 'MultiDeviceTests.cs'), (Join-Path $sourceDirectory 'WirelessTests.cs'), (Join-Path $sourceDirectory 'EngineFeatureTests.cs'), (Join-Path $sourceDirectory 'EngineUpdateTests.cs'))
 $testArguments += @('/reference:System.Drawing.dll',(Join-Path $sourceDirectory 'EngineLayout.cs'),(Join-Path $sourceDirectory 'EngineBranding.cs'))
+$testArguments += @('/reference:System.Windows.Forms.dll',(Join-Path $sourceDirectory 'ScreenSharingWindow.cs'))
+$testArguments += @((Join-Path $sourceDirectory 'AppUpdates.cs'),(Join-Path $sourceDirectory 'AppUpdateTests.cs'))
+$testArguments += Join-Path $sourceDirectory 'DiagnosticText.cs'
+$testArguments += Join-Path $sourceDirectory 'ReleaseNotesSummary.cs'
 & $compiler @testArguments
 if ($LASTEXITCODE -ne 0) { throw 'Test build failed.' }
 & (Join-Path $testDirectory 'connection-tests.exe')
@@ -97,5 +107,7 @@ $toolsDirectory = Join-Path $packageDirectory 'tools'
 New-Item -ItemType Directory -Path $toolsDirectory -Force | Out-Null
 & $compiler /nologo /target:winexe /optimize+ ('/out:' + (Join-Path $toolsDirectory 'Engine Updater.exe')) ('/win32icon:' + $iconPath) ('/win32manifest:' + (Join-Path $sourceDirectory 'app.manifest')) /reference:System.Core.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Net.Http.dll /reference:System.Web.Extensions.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll (Join-Path $sourceDirectory 'AssemblyInfo.cs') (Join-Path $sourceDirectory 'EngineUpdates.cs') (Join-Path $sourceDirectory 'EngineUpdater.cs') (Join-Path $sourceDirectory 'EngineLayout.cs') (Join-Path $sourceDirectory 'EngineBranding.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Engine updater build failed.' }
+& $compiler /nologo /target:winexe /optimize+ ('/out:' + (Join-Path $toolsDirectory 'App Updater.exe')) ('/win32icon:' + $iconPath) ('/win32manifest:' + (Join-Path $sourceDirectory 'app.manifest')) /reference:System.Core.dll /reference:System.Net.Http.dll /reference:System.Web.Extensions.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll (Join-Path $sourceDirectory 'AssemblyInfo.cs') (Join-Path $sourceDirectory 'AppUpdates.cs') (Join-Path $sourceDirectory 'AppUpdater.cs') (Join-Path $sourceDirectory 'EngineUpdates.cs') (Join-Path $sourceDirectory 'EngineLayout.cs')
+if ($LASTEXITCODE -ne 0) { throw 'App updater build failed.' }
 
 # Android Mirror.exe is the single public app launcher.

@@ -47,6 +47,7 @@ static class ConnectionTests
             if (args.Length > 0 && args[0] == "wait") { Thread.Sleep(30000); return 0; }
             if (args.Contains("--live-adb")) return LiveAdb();
             if (args.Contains("--live-updates")) return EngineUpdateTests.Live();
+            if (args.Contains("--live-app-updates")) return AppUpdateTests.Live();
             if (args.Contains("--process-tests")) { MultiDeviceTests.ProcessTest(); ProcessTest(); Console.WriteLine("PASS isolated real child process lifecycle checks"); return 0; }
             Test("ADB device names and authorization parsing", () => {
                 var devices = Device.Parse("one\tdevice usb:1 model:Pixel_9 transport_id:1\ntwo\tunauthorized\nthree\toffline\n");
@@ -142,6 +143,7 @@ static class ConnectionTests
             WirelessTests.Run(Test);
             EngineFeatureTests.Run(Test);
             EngineUpdateTests.Run(Test);
+            AppUpdateTests.Run(Test);
             Test("ADB stream handles fragmented frames, device changes, and server restart", () => ProtocolTest().GetAwaiter().GetResult());
             Test("Real child process drains logs and never overlaps on quick reattach", ProcessTest);
             Console.WriteLine(count + " tests passed."); return 0;

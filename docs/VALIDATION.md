@@ -1,8 +1,8 @@
-# Validation — Android Mirror 1.1.0
+# Validation — Android Mirror 1.1.1
 
 ## Automated coverage
 
-`src/build.ps1` builds the app using the Windows .NET Framework compiler and runs 51 connection, feature, and update checks. Coverage includes:
+`src/build.ps1` builds the app using the Windows .NET Framework compiler and runs 58 connection, feature, and update checks. Coverage includes:
 
 - ADB snapshot parsing, authorization/offline handling, fragmented TCP frames, and server reconnection.
 - Cable loss and rapid reattachment without overlapping child processes.
@@ -18,10 +18,16 @@
 - All 109 engine options, optional/required values, managed flags, per-device copies, recording filename uniqueness, and OTG transport selection.
 - Trusted release metadata, checksum failures, file additions/changes/removals, preservation of unrelated files, rollback, archive path validation, and blocking replacement of locally modified engines.
 - Upstream executable renaming and icon reapplication, matching native icon pixels, unchanged executable code sections, and retained branded-update provenance.
+- Stable app-release metadata from our repository, pinned release verification, rejection of foreign URLs/previews/missing checksums, version comparisons, old preference migration, and one-day prompt deferral persistence.
+- New authorized device hotplug and delayed Android authorization alongside an existing mirror, with explicit deselection preserved.
+- Branded displayed logs retain device/error details and use our GitHub URL.
+- Publisher release-note summaries remove Markdown, preserve change text, and bound oversized/missing notes; engine consent and app deferrals persist separately. Native self-checks verify both update labels, summaries, and action buttons.
 
 The app's `--self-check` path exercises background startup, tray restore, close-to-tray, single-instance activation, light/dark switching, Settings navigation, embedded SVG artwork, QR rendering, manual pairing screens, Advanced search and reset, rounded checkbox and chevron templates, and modal confirmation acceptance/cancellation. Checks suppress notifications, pairing, mirroring, preference writes, and Windows startup changes.
 
-`src/build-setup.ps1` performs five installer checks using a workspace fixture: path traversal rejection; full installation with the branded engine and a single app launcher; native shortcut creation; reinstall preservation of unrelated files; and uninstall removal of owned files while retaining unrelated files. It does not install into Program Files or change Windows installation settings.
+`src/build-setup.ps1` performs seven installer checks using a workspace fixture: path traversal rejection; full installation with the branded engine and a single app launcher; native shortcut creation; reinstall preservation of unrelated files; app upgrade preservation of a customized engine and app updater; rollback after a locked file interrupts app replacement; and uninstall removal of owned files while retaining unrelated files. It does not install into Program Files or change Windows installation settings.
+
+`src/test-screen-sharing.ps1` creates an animated SDL window using the bundled SDL3.dll and reads changing pixel samples through the real Windows Graphics Capture and D3D11 APIs. Checks cover background minimize, continuing captured frames, repeated minimize, taskbar-style activation, restored bounds, maximized restore, disabling/re-enabling the setting, and cleanup. Background samples continued changing across more than 100 captured frames. This validates the rendering/capture path, not an OBS recording or a Discord call. Windows SDK metadata is needed only to compile this optional test.
 
 ## Visual and native integration checks
 

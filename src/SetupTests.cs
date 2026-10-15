@@ -48,12 +48,25 @@ static class SetupTests
             Assert(File.ReadAllText(userFile) == "keep", "Update removed an unrelated file.");
             Assert(!File.Exists(Path.Combine(target, "scrcpy.exe")) && !File.Exists(Path.Combine(target, "scrcpy-connect.exe")) && !File.Exists(Path.Combine(target, "engine", "scrcpy.exe")), "Upgrade left duplicate launchers or the former engine name.");
             Console.WriteLine("PASS reinstall keeps unrelated files");
+            string runtime = Path.Combine(target, "engine", "Android Mirror Runtime.bin"), inventory = Path.Combine(target, "engine", "engine-manifest.json");
+            File.AppendAllText(runtime, "custom engine fixture"); File.WriteAllText(inventory, "custom engine metadata");
+            string retained = Hash(runtime);
+            Package.Install(target, false, false, message => { }, true);
+            Assert(Hash(runtime) == retained && File.ReadAllText(inventory) == "custom engine metadata" && File.Exists(Path.Combine(target, "tools", "App Updater.exe")), "App upgrade replaced a custom or newer engine, or omitted the app updater.");
+            Console.WriteLine("PASS app upgrade retains the installed engine and update helpers");
+            string appPath = Path.Combine(target, "Android Mirror.exe"), readme = Path.Combine(target, "README.md");
+            File.WriteAllText(appPath, "previous app fixture"); File.WriteAllText(readme, "previous README fixture");
+            string receipt = File.ReadAllText(Path.Combine(target, "install-manifest.txt")); bool rolledBack = false;
+            using (var locked = new FileStream(readme, FileMode.Open, FileAccess.Read, FileShare.Read))
+                try { Package.Install(target, false, false, message => { }, true); } catch (IOException) { rolledBack = true; }
+            Assert(rolledBack && File.ReadAllText(appPath) == "previous app fixture" && File.ReadAllText(readme) == "previous README fixture" && File.ReadAllText(Path.Combine(target, "install-manifest.txt")) == receipt && Hash(runtime) == retained, "A failed app upgrade did not roll back app files and preserve its engine.");
+            Console.WriteLine("PASS interrupted app file replacement restores the previous installation");
             Package.Uninstall(target, false, message => { });
             Assert(File.ReadAllText(userFile) == "keep", "Uninstall removed an unrelated file.");
             Assert(!File.Exists(Path.Combine(target, "Android Mirror.exe")) && !Directory.Exists(Path.Combine(target, "engine")) && !Directory.Exists(Path.Combine(target, "assets")) && !Directory.Exists(Path.Combine(target, "licenses")) && !Directory.Exists(Path.Combine(target, "docs")) && !Directory.Exists(Path.Combine(target, "tools")), "Owned installation files remain.");
             File.Delete(userFile); Directory.Delete(target);
             Console.WriteLine("PASS uninstall removes owned files and keeps user files");
-            Console.WriteLine("5 installer checks passed. Windows installation settings were not changed."); return 0;
+            Console.WriteLine("7 installer checks passed. Windows installation settings were not changed."); return 0;
         }
         catch (Exception error) { Console.Error.WriteLine(error); return 1; }
     }

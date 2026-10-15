@@ -19,6 +19,7 @@ namespace AndroidMirror
     {
         public string Serial = "", Name = "";
         public bool Selected;
+        public bool AutoStartWhenReady;
         public MirrorOptions Options = new MirrorOptions();
         [XmlIgnore] public string TransportSerial = "";
         public override string ToString() { return (String.IsNullOrEmpty(Name) ? Serial : Name) + (Serial.Length > 4 ? " · " + Serial.Substring(Serial.Length - 4) : ""); }
@@ -26,11 +27,17 @@ namespace AndroidMirror
     public sealed class AppPreferences
     {
         public bool AutoReconnect = true, SelectionInitialized;
+        public bool KeepSharingWhenMinimized = true;
         public string Theme = "system";
         public string ConnectionMode = "usb";
         public MirrorOptions DefaultOptions = new MirrorOptions();
         public string EngineUpdatePolicy = "automatic";
         public DateTime LastEngineUpdateCheck = DateTime.MinValue;
+        public bool CheckAppUpdates = true;
+        public DateTime LastAppUpdateCheck = DateTime.MinValue, DeferAppUpdateUntil = DateTime.MinValue;
+        public string DeferredAppVersion = "";
+        public string ApprovedEngineVersion = "", DeferredEngineVersion = "";
+        public DateTime DeferEngineUpdateUntil = DateTime.MinValue;
         public List<WirelessPeer> WirelessPeers = new List<WirelessPeer>();
         public List<DeviceProfile> Profiles = new List<DeviceProfile>();
         public static AppPreferences Load(string xmlFile, string legacyFile)
@@ -140,15 +147,21 @@ namespace AndroidMirror
             devices = devices.Where(d => !removedUntilDisconnect.Contains(d.Key)).ToList();
             devices = devices.Where(d => (Preferences.ConnectionMode == "adaptive" || (Preferences.ConnectionMode == "wireless" ? d.IsWireless : !d.IsWireless)) && (!d.IsWireless || !OptionsFor(d.Key).Has("--otg"))).GroupBy(d => d.Key).Select(g => g.OrderByDescending(d => d.State == "device" || (OptionsFor(d.Key).Has("--otg") && !d.IsWireless)).ThenBy(d => d.IsWireless).First()).ToList();
             Devices = devices;
+            int discovered = devices.Count(d => !slots.ContainsKey(d.Key));
             foreach (var device in devices)
             {
                 DeviceSlot slot;
                 if (!slots.TryGetValue(device.Key, out slot))
                 {
-                    var profile = new DeviceProfile { Serial = device.Key, Name = device.Name, Options = Preferences.DefaultOptions.Copy() };
+                    var profile = new DeviceProfile { Serial = device.Key, Name = device.Name, Options = Preferences.DefaultOptions.Copy(), AutoStartWhenReady = Preferences.AutoReconnect && discovered == 1 };
                     Preferences.Profiles.Add(profile); slot = Add(profile);
                 }
                 slot.Profile.Name = device.Name;
+                if (slot.Profile.AutoStartWhenReady && device.State == "device")
+                {
+                    slot.Profile.AutoStartWhenReady = false;
+                    if (Preferences.AutoReconnect) { slot.Profile.Selected = true; slot.Controller.AutoReconnect = true; slot.Controller.Wanted = true; }
+                }
             }
             if (!Preferences.SelectionInitialized && devices.Count > 0)
             {
@@ -175,7 +188,7 @@ namespace AndroidMirror
         }
         public void Select(string serial, bool selected)
         {
-            var slot = slots[serial]; Preferences.SelectionInitialized = true; slot.Profile.Selected = selected;
+            var slot = slots[serial]; Preferences.SelectionInitialized = true; slot.Profile.Selected = selected; slot.Profile.AutoStartWhenReady = false;
             if (!selected) slot.Controller.Stop();
             else if (Preferences.AutoReconnect) slot.Controller.Connect();
             Notify();
@@ -211,9 +224,9 @@ namespace AndroidMirror
             Devices.RemoveAll(d => d.Key == serial);
             batching = false; Notify();
         }
-        public void Stop(string serial) { slots[serial].Controller.Stop(); Notify(); }
+        public void Stop(string serial) { slots[serial].Profile.AutoStartWhenReady = false; slots[serial].Controller.Stop(); Notify(); }
         public void ConnectSelected() { batching = true; foreach (var slot in Slots.Where(s => s.Profile.Selected)) slot.Controller.Connect(); batching = false; Notify(); }
-        public void StopAll() { batching = true; foreach (var slot in Slots) slot.Controller.Stop(); batching = false; Notify(); }
+        public void StopAll() { batching = true; foreach (var slot in Slots) { slot.Profile.AutoStartWhenReady = false; slot.Controller.Stop(); } batching = false; Notify(); }
         public void SetAutoReconnect(bool enabled)
         {
             Preferences.AutoReconnect = enabled; batching = true;

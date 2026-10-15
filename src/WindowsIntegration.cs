@@ -107,11 +107,14 @@ namespace AndroidMirror
         bool dark;
         public event Action OpenRequested, QuitRequested, MirrorRequested, SettingsRequested;
         public event Action<string> Error;
-        public void NotifyUpdate(string version) { icon.ShowBalloonTip(5000, "Android Mirror", "Mirroring engine " + version + " is available. Open Settings for details.", Forms.ToolTipIcon.Info); }
+        void Notify(string title, string text) { if (!NativeNotifications.Show(icon, brandIcon, title, text)) icon.ShowBalloonTip(5000, title, text, Forms.ToolTipIcon.None); }
+        public void NotifyUpdate(string version) { Notify("Engine based update", "Mirroring engine " + version + " is available. Open Android Mirror to review what changed."); }
+        public void NotifyAppUpdate(string version) { Notify("Android Mirror update", "Android Mirror " + version + " is available. Open the app to update."); }
         [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr handle);
-        public TrayIntegration(string executable, string startupName, bool visible = true)
+        public TrayIntegration(string executable, string startupName, bool visible = true, bool registerIdentity = true)
         {
             this.executable = executable; this.startupName = startupName;
+            if (visible && registerIdentity) try { NativeNotifications.Register(executable); } catch (Exception) { }
             using (var artwork = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.ico"))
             using (var source = new Icon(artwork)) brandIcon = (Icon)source.Clone();
             idleIcon = (Icon)brandIcon.Clone();
@@ -165,10 +168,10 @@ namespace AndroidMirror
         }
         public void NotifyConnected(Device device)
         {
-            icon.ShowBalloonTip(4000, device.Name + " connected", "Your phone is connected to Android Mirror.", Forms.ToolTipIcon.Info);
+            Notify(device.Name + " connected", "Your device is connected to Android Mirror.");
         }
         public void NotifyBackground()
-        { icon.ShowBalloonTip(3000, "Android Mirror is running in the tray", "Device detection continues in the background. Click the tray icon to reopen the window.", Forms.ToolTipIcon.Info); }
+        { Notify("Android Mirror is running in the tray", "Device detection continues in the background. Click the tray icon to reopen the window."); }
         const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
         string StartupCommand { get { return MirrorProcess.Quote(executable) + " --background"; } }
         bool StartsWithWindows()

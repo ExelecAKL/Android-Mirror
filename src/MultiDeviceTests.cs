@@ -38,6 +38,19 @@ static class MultiDeviceTests
     static void Assert(bool value, string message) { if (!value) throw new Exception(message); }
     public static void Run(Action<string, Action> test)
     {
+        test("A newly plugged authorized device opens immediately alongside an existing mirror", () => {
+            using(var f=new Fixture()) {
+                f.Devices("phone\tdevice\n"); Assert(f.Sessions.Count==1,"First device did not open");
+                f.Devices("phone\tdevice\ntablet\tdevice\n");Assert(f.Sessions.Count==2&&f.Slot("tablet").Profile.Selected,"Newly attached tablet did not open immediately");
+                f.Controller.Select("tablet",false);f.Sessions.Last().Exit(0);f.Devices("phone\tdevice\n");f.Devices("phone\tdevice\ntablet\tdevice\n");Assert(f.Sessions.Count==2,"Explicitly deselected device reopened");
+            }
+        });
+        test("New devices wait for Android authorization before opening a mirror", () => {
+            using(var f=new Fixture()) {
+                f.Devices("phone\tdevice\n");f.Devices("phone\tdevice\ntablet\tunauthorized\n");Assert(f.Sessions.Count==1,"Unapproved device opened");
+                f.Devices("phone\tdevice\ntablet\tdevice\n");Assert(f.Sessions.Count==2,"Authorization did not open the newly connected device");
+            }
+        });
         test("Removing a device stops only its mirror and clears its saved profile", () => {
             using (var f = new Fixture()) {
                 f.Devices("phone\tdevice\ntablet\tdevice\n"); f.Controller.Select("phone", true); f.Controller.Select("tablet", true);

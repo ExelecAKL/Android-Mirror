@@ -261,14 +261,25 @@
             <CheckBox x:Name="StartupToggle" Style="{StaticResource SwitchStyle}" Margin="0,0,0,18" AutomationProperties.Name="Start with Windows">
               <StackPanel><TextBlock Text="Start with Windows"/><TextBlock Text="Start quietly in the Windows tray." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/></StackPanel>
             </CheckBox>
+            <CheckBox x:Name="KeepSharingToggle" Style="{StaticResource SwitchStyle}" Margin="0,0,0,18" AutomationProperties.Name="Keep sharing when minimized">
+              <StackPanel><TextBlock Text="Keep sharing when minimized"/><TextBlock Text="Keep the picture live for OBS and screen sharing." TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/></StackPanel>
+            </CheckBox>
             <Label Content="_Theme" Target="{Binding ElementName=ThemePicker}" Padding="0,0,0,6"/>
             <ComboBox x:Name="ThemePicker" MinHeight="36" AutomationProperties.Name="Theme"><ComboBoxItem Content="Use Windows setting"/><ComboBoxItem Content="Light"/><ComboBoxItem Content="Dark"/></ComboBox>
             <Button x:Name="AdvancedButton" Content="Advanced mirroring options" Margin="0,16,0,0" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/>
           </StackPanel>
         </Border>
         <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12"><StackPanel>
+          <TextBlock Text="Android Mirror updates" FontWeight="SemiBold" Margin="0,0,0,14"/>
+          <CheckBox x:Name="AppUpdatesToggle" Style="{StaticResource SwitchStyle}" AutomationProperties.Name="Check for Android Mirror updates"><StackPanel><TextBlock Text="Check for app updates"/><TextBlock Text="Check daily and ask before installing." FontSize="12" Foreground="{DynamicResource Muted}" Margin="0,4,0,0"/></StackPanel></CheckBox>
+          <TextBlock x:Name="AppUpdateStatus" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,12,0,12"/>
+          <Button x:Name="CheckAppUpdates" Content="Check for Android Mirror updates" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/>
+          <Button x:Name="InstallAppUpdate" Content="Update Android Mirror" Visibility="Collapsed" Margin="0,8,0,0"/>
+          <Expander Header="What’s new in Android Mirror" Margin="0,12,0,0"><TextBox x:Name="AppReleaseNotes" IsReadOnly="True" TextWrapping="Wrap" Height="220" VerticalScrollBarVisibility="Auto" FontSize="12" Margin="0,12,0,0"/></Expander>
+        </StackPanel></Border>
+        <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Stroke}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12"><StackPanel>
           <TextBlock Text="Mirroring engine updates" FontWeight="SemiBold"/>
-          <TextBlock Text="Get official engine releases while keeping your app settings. Automatic mode downloads verified packages and installs while the app is idle in the tray. Windows may request administrator approval." Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,8,0,12"/>
+          <TextBlock Text="Get engine releases while keeping your app settings. See what changed and approve installation in an Engine based update popup. Automatic mode can download verified packages in advance and installs approved updates while idle." Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,8,0,12"/>
           <ComboBox x:Name="EngineUpdatePolicy" MinHeight="36" AutomationProperties.Name="Engine update policy"><ComboBoxItem Content="Off"/><ComboBoxItem Content="Check only"/><ComboBoxItem Content="Automatic"/></ComboBox>
           <TextBlock x:Name="EngineUpdateStatus" Text="Installed engine: 5.0.1" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,12,0,12"/>
           <Button x:Name="CheckEngineUpdates" Content="Check for engine updates" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/>
@@ -346,7 +357,12 @@
       <Border.RenderTransform><ScaleTransform/></Border.RenderTransform>
       <Border.Effect><DropShadowEffect BlurRadius="32" ShadowDepth="8" Opacity="0.22"/></Border.Effect>
       <StackPanel>
-        <StackPanel Margin="24,24,24,26"><TextBlock x:Name="DialogTitle" FontSize="20" FontWeight="SemiBold"/><TextBlock x:Name="DialogBody" FontSize="14" LineHeight="21" Margin="0,14,0,0"/></StackPanel>
+        <StackPanel Margin="24,24,24,26">
+          <Border x:Name="DialogUpdateTag" Visibility="Collapsed" HorizontalAlignment="Left" Background="{DynamicResource Input}" CornerRadius="4" Padding="8,4" Margin="0,0,0,12"><TextBlock x:Name="DialogUpdateKind" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Accent}"/></Border>
+          <TextBlock x:Name="DialogTitle" FontSize="20" FontWeight="SemiBold"/>
+          <StackPanel x:Name="DialogChanges" Visibility="Collapsed" Margin="0,16,0,0"><TextBlock Text="What’s changed" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/><ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="DialogReleaseSummary" FontSize="13" LineHeight="19" TextWrapping="Wrap"/></ScrollViewer></StackPanel>
+          <TextBlock x:Name="DialogBody" FontSize="13" LineHeight="19" Margin="0,16,0,0" Foreground="{DynamicResource Muted}"/>
+        </StackPanel>
         <Border Background="{DynamicResource DialogFooter}" CornerRadius="0,0,8,8" BorderBrush="{DynamicResource Stroke}" BorderThickness="0,1,0,0" Padding="24">
           <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><Button x:Name="DialogPrimary" Content="Continue" Margin="0,0,8,0"/><Button x:Name="DialogCancel" Grid.Column="1" Content="Cancel" Background="{DynamicResource Input}" Foreground="{DynamicResource Text}" BorderBrush="{DynamicResource Stroke}"/></Grid>
         </Border>

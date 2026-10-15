@@ -81,7 +81,7 @@ namespace AndroidMirror
             }
             using (var artwork = Assembly.GetExecutingAssembly().GetManifestResourceStream("app-artwork.png")) window.Icon = BitmapFrame.Create(artwork, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
             Control<Image>("BrandIcon").Source = SvgLogo.LoadEmbedded();
-            controller = new MultiDeviceController(preferences, profile => preview ? (IMirrorSession)new PreviewMirror() : new MirrorProcess(engineDirectory, String.IsNullOrEmpty(profile.TransportSerial) ? profile.Serial : profile.TransportSerial, line => AddLog(profile.Name + ": " + line), profile.Options.Copy(), profile.Name), OnUI);
+            controller = new MultiDeviceController(preferences, profile => preview ? (IMirrorSession)new PreviewMirror() : new MirrorProcess(engineDirectory, String.IsNullOrEmpty(profile.TransportSerial) ? profile.Serial : profile.TransportSerial, line => AddLog(profile.Name + ": " + line), profile.Options.Copy(), profile.Name, preferences.KeepSharingWhenMinimized), OnUI);
             if (selfCheck)
             {
                 preferences.SelectionInitialized = true;
@@ -100,6 +100,8 @@ namespace AndroidMirror
             };
             Control<CheckBox>("AutoReconnect").Checked += delegate { if (!updating) { controller.SetAutoReconnect(true); SaveSettings(); } };
             Control<CheckBox>("AutoReconnect").Unchecked += delegate { if (!updating) { controller.SetAutoReconnect(false); SaveSettings(); } };
+            Control<CheckBox>("KeepSharingToggle").Checked += delegate { ChangeBackgroundSharing(true); };
+            Control<CheckBox>("KeepSharingToggle").Unchecked += delegate { ChangeBackgroundSharing(false); };
             Control<CheckBox>("AudioToggle").Checked += delegate { ChangeDeviceOptions(); };
             Control<CheckBox>("AudioToggle").Unchecked += delegate { ChangeDeviceOptions(); };
             Control<CheckBox>("ControlToggle").Checked += delegate { ChangeDeviceOptions(); };
@@ -136,10 +138,10 @@ namespace AndroidMirror
                 controller.Dispose(); if (tray != null) tray.Dispose();
             };
             timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            timer.Tick += delegate { if (!updatingEngine) { controller.Tick(); MaybeReconnectWireless(); TickEngineUpdates(); } };
+            timer.Tick += delegate { if (!updatingEngine) { controller.Tick(); MaybeReconnectWireless(); TickEngineUpdates(); TickAppUpdates(); } };
             if (!preview)
             {
-                tray = new TrayIntegration(Assembly.GetExecutingAssembly().Location, "ScrcpyConnect-" + StableId(directory));
+                tray = new TrayIntegration(Assembly.GetExecutingAssembly().Location, "ScrcpyConnect-" + StableId(directory), true, !selfCheck);
                 tray.OpenRequested += () => OnUI(RestoreWindow);
                 tray.SettingsRequested += () => OnUI(() => { RestoreWindow(); OpenSettings(true); });
                 tray.QuitRequested += () => OnUI(Quit);
@@ -150,7 +152,7 @@ namespace AndroidMirror
                 if (quitSignal != null) quitWait = ThreadPool.RegisterWaitForSingleObject(quitSignal, (state, timeout) => OnUI(Quit), null, Timeout.Infinite, false);
                 Application.Current.SessionEnding += delegate { exiting = true; };
             }
-            InitializeDialogs(); InitializeInputFocus(); InitializeWireless(); InitializeEngineUi(); InitializeUpdates(); InitializeMotion(); RefreshAppearance();
+            InitializeDialogs(); InitializeInputFocus(); InitializeWireless(); InitializeEngineUi(); InitializeUpdates(); InitializeAppUpdates(); InitializeMotion(); RefreshAppearance();
         }
         void RestoreWindow()
         {
@@ -197,6 +199,7 @@ namespace AndroidMirror
         }
         void AddLog(string line)
         {
+            line = DiagnosticText.Display(line, directory);
             lock (logs) { logs.Enqueue(line); while (logs.Count > 120) logs.Dequeue(); }
             OnUI(() => { if (Control<Expander>("Help").IsExpanded) RefreshLog(); });
         }
@@ -266,6 +269,7 @@ namespace AndroidMirror
             Control<CheckBox>("ControlToggle").IsChecked = selected != null && selected.Options.ControlEnabled;
             Control<Button>("ResetDeviceDefaults").IsEnabled = selected != null;
             Control<CheckBox>("AutoReconnect").IsChecked = preferences.AutoReconnect;
+            Control<CheckBox>("KeepSharingToggle").IsChecked = preferences.KeepSharingWhenMinimized;
             Control<CheckBox>("StartupToggle").IsChecked = tray != null && tray.StartupEnabled;
             Control<CheckBox>("StartupToggle").IsEnabled = !preview && !selfCheck;
             Control<ComboBox>("ThemePicker").SelectedIndex = themeMode == "light" ? 1 : themeMode == "dark" ? 2 : 0;
@@ -293,6 +297,13 @@ namespace AndroidMirror
             controller.SetOptions(settingsSerial, Control<CheckBox>("AudioToggle").IsChecked == true, Control<CheckBox>("ControlToggle").IsChecked == true); SaveSettings();
         }
         void ChangeStartup(bool enabled) { if (!updating && tray != null && !selfCheck) { tray.StartupEnabled = enabled; RenderSettings(); } }
+        void ChangeBackgroundSharing(bool enabled)
+        {
+            if (updating) return;
+            preferences.KeepSharingWhenMinimized = enabled;
+            foreach (var slot in controller.Slots) { var session = slot.Controller.Active as MirrorProcess; if (session != null) session.KeepSharingWhenMinimized = enabled; }
+            SaveSettings();
+        }
         void Render()
         {
             if (closed) return;
@@ -356,7 +367,7 @@ namespace AndroidMirror
             {
                 preferences.AutoReconnect = false;
                 preferences.ConnectionMode = "adaptive";
-                if (new[] { "multiple", "settings", "mirroring", "motion", "wireless", "manual", "advanced", "advanced-input", "advanced-disabled", "advanced-details", "dialog", "help", "updates", "manage" }.Contains(renderState))
+                if (new[] { "multiple", "settings", "mirroring", "motion", "wireless", "manual", "advanced", "advanced-input", "advanced-disabled", "advanced-details", "dialog", "app-update-dialog", "engine-update-dialog", "help", "updates", "manage" }.Contains(renderState))
                 {
                     controller.UpdateDevices(Device.Parse("phone-a\tdevice model:Pixel_9\ntablet-b\tdevice model:Galaxy_Tab\n"));
                     controller.SetOptions("phone-a", true, false); controller.SetOptions("tablet-b", false, true);
@@ -369,6 +380,8 @@ namespace AndroidMirror
                     if (renderState == "advanced-disabled") { OpenSettings(true); OpenAdvanced(true); Control<ComboBox>("FeatureCategory").SelectedItem = "Keyboard"; }
                     if (renderState == "advanced-details") { OpenSettings(true); OpenAdvanced(true); Control<TextBox>("FeatureSearch").Text = "--audio-codec-options"; var card = (Border)Control<StackPanel>("FeatureRows").Children[0]; ((StackPanel)card.Child).Children.OfType<Expander>().First().IsExpanded = true; }
                     if (renderState == "dialog") { OpenSettings(true); ConfirmDialog("Enable wireless mirroring?", "Wi-Fi may add delay or stutter, depending on your connection.\n\nUSB is recommended for the lowest latency.", "Enable wireless", "Keep USB"); }
+                    if (renderState == "app-update-dialog") { ConfirmDialog("Android Mirror 1.2.0 is available", "Your preferences and current engine are kept. Active mirrors will close and restart according to your settings. Windows will ask for administrator approval.", "Install update", "Remind me later", "App update", "- Keep the picture live when the mirror is minimized.\n- Get Android Mirror update prompts in the app.\n- Branded connection logs and Windows notifications."); }
+                    if (renderState == "engine-update-dialog") { ConfirmDialog("Mirroring engine 5.0.2 is available", "This updates the mirroring engine. Your app and settings are kept. Installation waits until active mirrors stop.", "Install update", "Remind me later", "Engine based update", "- Changes published with the engine release appear here.\n- Longer release notes can be scrolled before installing."); }
                     if (renderState == "help") Control<Expander>("Help").IsExpanded = true;
                     if (renderState == "updates") { OpenSettings(true); Control<ScrollViewer>("SettingsView").ScrollToEnd(); }
                     if (renderState == "manage") { OpenSettings(true); Control<Expander>("ManageDevices").IsExpanded = true; }
@@ -475,6 +488,8 @@ namespace AndroidMirror
                         Control<Expander>("ManageDevices").IsExpanded = true; window.UpdateLayout();
                         if (Control<StackPanel>("ManagedDeviceRows").Children.Count != Math.Max(1, controller.Slots.Count())) throw new Exception("Device management list failed.");
                         report.Add("PASS Settings device management lists connected and saved profiles");
+                        if (Control<CheckBox>("KeepSharingToggle").IsChecked != preferences.KeepSharingWhenMinimized || Control<CheckBox>("AppUpdatesToggle").IsChecked != preferences.CheckAppUpdates || !Control<TextBlock>("AppUpdateStatus").Text.Contains(appVersion)) throw new Exception("Background sharing or app update controls failed.");
+                        report.Add("PASS background screen sharing and separate Android Mirror update controls");
                         OpenWireless(true); window.UpdateLayout();
                         if (!(Control<Image>("PairingQrImage").Source is DrawingImage)) throw new Exception("QR code rendering failed.");
                         ShowPairingTab(false);
@@ -514,10 +529,18 @@ namespace AndroidMirror
                         var cancelled = ConfirmDialog("Restore defaults?", "Test only; settings are retained.", "Restore defaults"); CompleteDialog(false);
                         if (!cancelled.IsCompleted || cancelled.Result || !Control<Grid>("AppContent").IsEnabled) throw new Exception("Dialog cancellation failed.");
                         report.Add("PASS theme-aware modal confirmation, blocked background input, accept and cancel");
+                        var appPrompt = ConfirmDialog("Android Mirror update available", "Test only; nothing is downloaded or installed.", "Install update", "Remind me later", "App update", "- **Background capture** stays live.");
+                        if (Control<Button>("DialogPrimary").Content.ToString() != "Install update" || Control<Button>("DialogCancel").Content.ToString() != "Remind me later") throw new Exception("App update prompt actions failed.");
+                        if (Control<TextBlock>("DialogUpdateKind").Text != "App update" || !Control<TextBlock>("DialogReleaseSummary").Text.Contains("Background capture stays live.")) throw new Exception("App update changes or label are missing.");
+                        CompleteDialog(false); if (!appPrompt.IsCompleted || appPrompt.Result) throw new Exception("App update postponement failed.");
+                        var enginePrompt = ConfirmDialog("Mirroring engine update available", "Test only.", "Install update", "Remind me later", "Engine based update", "- Device compatibility fixes.");
+                        if (Control<TextBlock>("DialogUpdateKind").Text != "Engine based update" || !Control<TextBlock>("DialogReleaseSummary").Text.Contains("Device compatibility fixes.")) throw new Exception("Engine based update changes or label are missing.");
+                        CompleteDialog(false);
+                        report.Add("PASS App update / Engine based update labels, readable changes, and Install update / Remind me later actions");
                         if (!(Control<Image>("BrandIcon").Source is DrawingImage)) throw new Exception("SVG logo missing.");
                         report.Add("PASS embedded SVG app logo");
                         report.Add("Native material: " + Appearance.Material);
-                        report.Add("Notification delivery: Windows NotifyIcon.ShowBalloonTip (suppressed during checks)");
+                        report.Add("Notification delivery: Windows Shell_NotifyIcon with Android Mirror artwork (suppressed during checks)");
                         File.WriteAllLines(output, report);
                         check.Stop(); Quit();
                     }

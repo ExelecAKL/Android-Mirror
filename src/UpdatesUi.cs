@@ -14,9 +14,8 @@ namespace AndroidMirror
     {
         string engineVersion = "5.0.1", downloadedEngine = "", notifiedUpdate = "";
         EngineRelease availableEngine;
-        bool updateCheckBusy, updateDownloadBusy, updatingEngine, customEngine, engineVersionKnown;
+        bool updateCheckBusy, updateDownloadBusy, updatingEngine, customEngine, engineVersionKnown, enginePromptBusy;
         DateTime nextDownloadAttempt, nextInstallAttempt;
-        DateTime engineIdleSince = DateTime.UtcNow;
         readonly CancellationTokenSource updatesLifetime = new CancellationTokenSource();
         void InitializeUpdates()
         {
@@ -64,6 +63,7 @@ namespace AndroidMirror
                 if (customEngine) Control<TextBlock>("EngineUpdateStatus").Text += " Local engine changes detected; installation is paused to preserve them.";
                 Control<TextBox>("EngineReleaseNotes").Text = availableEngine.Notes;
                 if (newer && tray != null && notifiedUpdate != availableEngine.Tag) { notifiedUpdate = availableEngine.Tag; tray.NotifyUpdate(availableEngine.Version); }
+                if (newer && requested && !customEngine) await PromptEngineUpdate();
             } catch (OperationCanceledException) { if (!closed && requested) Control<TextBlock>("EngineUpdateStatus").Text = "Update check timed out. Your installed engine was kept."; }
             catch (Exception error) { if (!closed) Control<TextBlock>("EngineUpdateStatus").Text = "Couldn’t check online: " + error.Message; }
             finally { updateCheckBusy = false; if (!closed) Control<Button>("CheckEngineUpdates").IsEnabled = true; }
@@ -87,7 +87,8 @@ namespace AndroidMirror
         }
         async Task PrepareAndInstallUpdate(bool requested = false)
         {
-            if (updatingEngine || preview || selfCheck || availableEngine == null || customEngine || (!requested && DateTime.UtcNow < nextInstallAttempt)) return;
+            if (updatingEngine || appInstallBusy || preview || selfCheck || availableEngine == null || customEngine || (!requested && DateTime.UtcNow < nextInstallAttempt)) return;
+            if (preferences.ApprovedEngineVersion != availableEngine.Tag) { await PromptEngineUpdate(); return; }
             if (downloadedEngine.Length == 0) await DownloadEngineUpdate(requested);
             if (downloadedEngine.Length == 0 || closed) return;
             if (controller.ActiveCount > 0 || otgSession != null) { Control<TextBlock>("EngineUpdateStatus").Text = "Update ready. Stop the active mirrors before installing."; return; }
@@ -116,29 +117,53 @@ namespace AndroidMirror
                 SaveSettings();
                 Control<Button>("InstallEngineUpdate").Visibility = Visibility.Collapsed;
                 Control<TextBlock>("EngineUpdateStatus").Text = "Engine " + engineVersion + " installed. Saved settings were kept.";
-            } catch (Exception error) { if (!closed) Control<TextBlock>("EngineUpdateStatus").Text = error.Message; }
+            } catch (Exception error) { if (!closed) { Control<TextBlock>("EngineUpdateStatus").Text = error.Message; preferences.ApprovedEngineVersion = ""; preferences.DeferredEngineVersion = release.Tag; preferences.DeferEngineUpdateUntil = DateTime.UtcNow.AddDays(1); SaveSettings(); } }
             finally {
                 updatingEngine = false;
                 if (!closed && paused) { wirelessLifetime.Dispose(); wirelessLifetime = new CancellationTokenSource(); Control<Grid>("AppContent").IsEnabled = true; StartTracker(); timer.Start(); foreach (string serial in wanted) controller.Connect(serial); }
             }
         }
+        async Task PromptEngineUpdate()
+        {
+            if (closed || preview || selfCheck || customEngine || availableEngine == null || !availableEngine.NewerThan(engineVersion) || enginePromptBusy || appPromptBusy || dialogResult != null || appInstallBusy || updatingEngine || !window.IsVisible) return;
+            enginePromptBusy = true; var release = availableEngine;
+            try
+            {
+                if (!await ConfirmDialog("Mirroring engine " + release.Version + " is available", "This updates the engine that mirrors your devices. Your Android Mirror app and saved settings are kept. Installation waits until active mirrors stop. Windows may ask for administrator approval.", "Install update", "Remind me later", "Engine based update", release.Notes))
+                {
+                    preferences.ApprovedEngineVersion = "";
+                    preferences.DeferredEngineVersion = release.Tag; preferences.DeferEngineUpdateUntil = DateTime.UtcNow.AddDays(1); SaveSettings(); return;
+                }
+                preferences.ApprovedEngineVersion = release.Tag; SaveSettings();
+                await DownloadEngineUpdate(true);
+                if (!closed && downloadedEngine.Length > 0 && controller.ActiveCount == 0 && otgSession == null) await PrepareAndInstallUpdate(true);
+            }
+            catch (Exception error) { if (!closed) Control<TextBlock>("EngineUpdateStatus").Text = "Couldn’t prepare the engine update: " + error.Message; }
+            finally { enginePromptBusy = false; }
+        }
         async void TickEngineUpdates()
         {
-            if (preview || selfCheck || closed || updatingEngine || !engineVersionKnown || preferences.EngineUpdatePolicy == "off") return;
-            if (controller.ActiveCount > 0 || otgSession != null) engineIdleSince = DateTime.UtcNow;
-            if (!updateCheckBusy && DateTime.UtcNow - preferences.LastEngineUpdateCheck > TimeSpan.FromDays(1)) {
+            bool approved = availableEngine != null && availableEngine.NewerThan(engineVersion) && preferences.ApprovedEngineVersion == availableEngine.Tag;
+            if (preview || selfCheck || closed || updatingEngine || appInstallBusy || !engineVersionKnown || (preferences.EngineUpdatePolicy == "off" && !approved)) return;
+            if (preferences.EngineUpdatePolicy != "off" && !updateCheckBusy && DateTime.UtcNow - preferences.LastEngineUpdateCheck > TimeSpan.FromDays(1)) {
                 preferences.LastEngineUpdateCheck = DateTime.UtcNow;
                 await CheckEngineUpdates(false);
             }
-            if (closed || customEngine || preferences.EngineUpdatePolicy != "automatic" || availableEngine == null || !availableEngine.NewerThan(engineVersion) || controller.ActiveCount > 0 || otgSession != null || updateDownloadBusy) return;
+            if (!closed && availableEngine != null && availableEngine.NewerThan(engineVersion) && !customEngine && preferences.ApprovedEngineVersion != availableEngine.Tag && window.IsVisible && dialogResult == null && !enginePromptBusy && !appPromptBusy && !(preferences.DeferredEngineVersion == availableEngine.Tag && DateTime.UtcNow < preferences.DeferEngineUpdateUntil)) await PromptEngineUpdate();
+            if (closed || customEngine || availableEngine == null || !availableEngine.NewerThan(engineVersion) || controller.ActiveCount > 0 || otgSession != null || updateDownloadBusy || enginePromptBusy || appPromptBusy || dialogResult != null) return;
+            if (preferences.ApprovedEngineVersion == availableEngine.Tag) { await PrepareAndInstallUpdate(); return; }
+            if (preferences.EngineUpdatePolicy != "automatic") return;
             if (downloadedEngine.Length == 0) await DownloadEngineUpdate();
-            if (!closed && !window.IsVisible && DateTime.UtcNow - engineIdleSince > TimeSpan.FromMinutes(2) && downloadedEngine.Length > 0) await PrepareAndInstallUpdate();
         }
         async void ResetAppDefaults()
         {
             if (preview || selfCheck) return;
             if (!await ConfirmDialog("Restore default settings?", "This resets app and device options, returns to USB only, and disables Start with Windows. Your device pairing keys are kept.", "Restore defaults")) return;
             preferences.DefaultOptions = new MirrorOptions(); preferences.EngineUpdatePolicy = "automatic";
+            ChangeBackgroundSharing(true);
+            preferences.CheckAppUpdates = true; preferences.DeferredAppVersion = ""; preferences.DeferAppUpdateUntil = DateTime.MinValue;
+            preferences.ApprovedEngineVersion = ""; preferences.DeferredEngineVersion = ""; preferences.DeferEngineUpdateUntil = DateTime.MinValue;
+            updating = true; Control<CheckBox>("AppUpdatesToggle").IsChecked = true; updating = false;
             foreach (var slot in controller.Slots.ToArray()) controller.ApplyOptions(slot.Profile.Serial, new MirrorOptions());
             controller.SetConnectionMode("usb"); controller.SetAutoReconnect(true); themeMode = "system";
             if (tray != null) tray.StartupEnabled = false;
